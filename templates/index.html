@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block title %}Home | Plant Health Maize Project{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     HERO SECTION
+     ============================================================ -->
+
+<section class="hero">
+
+    <h1>Plant Health Maize Project</h1>
+
+    <p>
+        An AI-powered system for maize disease diagnosis
+        and plant health information.
+    </p>
+
+</section>
+
+
+<!-- ============================================================
+     MAIN OPTIONS
+     ============================================================ -->
+
+<section class="home-options">
+
+    <div class="option-card">
+
+        <h2>Diagnose a Maize Leaf</h2>
+
+        <p>
+            Upload an image of a maize leaf and let the trained
+            model analyze it for common maize diseases.
+        </p>
+
+        <p>
+            The system will provide a prediction together with
+            its confidence and relevant plant-health information.
+        </p>
+
+        <a href="{{ url_for('diagnosis') }}" class="button">
+           Diagnose a Maize Leaf
+        </a>
+
+    </div>
+
+
+    <div class="option-card">
+
+        <h2>Ask a Plant Health Question</h2>
+
+        <p>
+            Ask questions about plant diseases, symptoms,
+            transmission, favourable conditions, management,
+            and other available plant-health information.
+        </p>
+
+        <a href="{{ url_for('chatbot') }}" class="button">
+            Ask a Plant Health Question
+        </a>
+
+    </div>
+
+</section>
+
+{% endblock %}

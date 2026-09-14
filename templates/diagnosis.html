@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}Maize Disease Diagnosis | Plant Health Maize Project{% endblock %}
+
+{% block content %}
+
+<!-- ============================================================
+     DIAGNOSIS PAGE
+     ============================================================ -->
+
+<section class="diagnosis-page">
+
+    <div class="diagnosis-header">
+
+        <h1>Maize Disease Diagnosis</h1>
+
+        <p>
+            Upload an image of a maize leaf to analyze its
+            health condition using the trained AI model.
+        </p>
+
+    </div>
+
+
+    <!-- ========================================================
+         IMAGE UPLOAD AREA
+         ======================================================== -->
+
+    <div class="upload-card">
+
+        <h2>Upload a Maize Leaf Image</h2>
+
+        <p>
+            Choose a clear image of a maize leaf for analysis.
+        </p>
+
+        <form method="POST"
+              action="{{ url_for('diagnose') }}"
+              enctype="multipart/form-data">
+
+            <label for="image">
+                Select maize leaf image
+            </label>
+
+            <input
+                type="file"
+                id="image"
+                name="image"
+                accept="image/*"
+                required
+            >
+
+            <button type="submit">
+                Analyze Image
+            </button>
+
+        </form>
+
+    </div>
+
+
+    <!-- ========================================================
+         DIAGNOSIS RESULT
+         ======================================================== -->
+
+    {% if result %}
+
+    <div class="result-card">
+
+        <h2>Diagnosis Result</h2>
+
+
+        <!-- ====================================================
+             ANALYZED IMAGE
+             ==================================================== -->
+
+        <div class="result-image">
+
+            <h3>Analyzed Image</h3>
+
+            <img
+                src="/static/{{ result.image_path.replace('\\', '/').replace('static/', '', 1) }}"
+                alt="Uploaded maize leaf image"
+            >
+
+        </div>
+
+
+        <!-- ====================================================
+             PREDICTION INFORMATION
+             ==================================================== -->
+
+        <div class="result-details">
+
+            <p>
+                <strong>Prediction:</strong>
+                {{ result.class_name }}
+            </p>
+
+            <p>
+                <strong>Confidence:</strong>
+                {{ "%.2f"|format(result.confidence * 100) }}%
+            </p>
+
+
+            <!-- ================================================
+                 CONFIDENCE STATUS
+                 ================================================ -->
+
+            {% if result.confidence_status == "accepted" %}
+
+            <div class="confidence-status confidence-accepted">
+
+                <strong>Prediction status: Accepted</strong>
+
+                <p>
+                    The model's confidence is above the system's
+                    acceptance threshold.
+                </p>
+
+            </div>
+
+            {% else %}
+
+            <div class="confidence-status confidence-uncertain">
+
+                <strong>Prediction status: Uncertain</strong>
+
+                <p>
+                    The model's confidence is below the system's
+                    acceptance threshold. This prediction should
+                    not be treated as a confirmed diagnosis.
+                </p>
+
+            </div>
+
+            {% endif %}
+
+
+            {% if result.is_healthy %}
+
+            <p>
+                <strong>Health status:</strong>
+                Healthy
+            </p>
+
+            {% else %}
+
+            <p>
+                <strong>Health status:</strong>
+                Potential disease detected
+            </p>
+
+            {% endif %}
+
+        </div>
+
+
+        <!-- ====================================================
+             CAUTION NOTICE
+             ==================================================== -->
+
+        {% if result.caution_required %}
+
+        <div class="caution-notice">
+
+            <h3>Important Caution</h3>
+
+            <p>
+                {{ result.caution_reason }}
+            </p>
+
+        </div>
+
+        {% endif %}
+
+
+        <!-- ====================================================
+             UNCERTAIN RESULT NOTICE
+             ==================================================== -->
+
+        {% if result.confidence_status == "uncertain" %}
+
+        <div class="uncertain-notice">
+
+            <h3>Uncertain Prediction</h3>
+
+            <p>
+                The model is not sufficiently confident in this
+                prediction. The result should not be treated as
+                a confirmed diagnosis.
+            </p>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+    {% endif %}
+
+
+    <!-- ========================================================
+         SAFETY NOTICE
+         ======================================================== -->
+
+    <div class="diagnosis-notice">
+
+        <h2>Important</h2>
+
+        <p>
+            The system provides an AI-based prediction and
+            confidence level. Results should not be treated as
+            a certain diagnosis, especially when the system
+            reports an uncertain prediction.
+        </p>
+
+    </div>
+
+</section>
+
+{% endblock %}
