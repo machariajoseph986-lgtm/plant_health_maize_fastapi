@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>{% block title %}Plant Health Maize Project{% endblock %}</title>
+
+    {% block styles %}
+    <link rel="stylesheet" href="/static/css/style.css">
+    {% endblock %}
+</head>
+
+<body>
+
+    <!-- ===================================================== -->
+    <!-- SITE HEADER -->
+    <!-- ===================================================== -->
+
+    <header>
+        <nav>
+            <a href="/">Plant Health Maize Project</a>
+        </nav>
+    </header>
+
+
+    <!-- ===================================================== -->
+    <!-- MAIN CONTENT -->
+    <!-- ===================================================== -->
+
+    <main>
+        {% block content %}
+        {% endblock %}
+    </main>
+
+
+    <!-- ===================================================== -->
+    <!-- FOOTER -->
+    <!-- ===================================================== -->
+
+    <footer>
+        <p>Plant Health Maize Project</p>
+    </footer>
+
+
+    {% block scripts %}
+    {% endblock %}
+
+</body>
+</html>

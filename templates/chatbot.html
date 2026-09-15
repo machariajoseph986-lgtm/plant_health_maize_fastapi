@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Plant Health Chatbot | Plant Health Maize Project{% endblock %}
+
+{% block content %}
+
+<section class="diagnosis-page">
+
+    <div class="page-header">
+
+        <h1>Plant Health Chatbot</h1>
+
+        <p>
+            Ask questions about maize diseases, symptoms,
+            transmission, favourable conditions, management,
+            and other available plant-health information.
+        </p>
+
+    </div>
+
+
+    <div class="chatbot-container">
+
+        <form method="POST" action="{{ url_for('chatbot') }}">
+
+            <label for="question">
+                Your question
+            </label>
+
+            <textarea
+                id="question"
+                name="question"
+                rows="5"
+                placeholder="For example: What are the symptoms of maize common rust?"
+                required
+            ></textarea>
+
+            <button type="submit">
+                Ask Question
+            </button>
+
+        </form>
+
+
+        {% if response %}
+
+        <div class="chatbot-response">
+
+            <h2>Plant Health Information</h2>
+
+            <div class="response-content">
+                {{ response | safe }}
+            </div>
+
+        </div>
+
+        {% endif %}
+
+    </div>
+
+</section>
+
+{% endblock %}
