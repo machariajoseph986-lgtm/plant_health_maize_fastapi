@@ -3,7 +3,6 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
     <title>{% block title %}Plant Health Maize Project{% endblock %}</title>
 
     {% block styles %}
@@ -13,38 +12,40 @@
 
 <body>
 
-    <!-- ===================================================== -->
-    <!-- SITE HEADER -->
-    <!-- ===================================================== -->
-
     <header>
         <nav>
-            <a href="/">Plant Health Maize Project</a>
+            <a href="/" class="brand">
+                <span class="brand-icon">🌽</span>
+                <span class="brand-name">Plant Health AI</span>
+            </a>
+
+            <div class="nav-links">
+                {% if request.url.path == '/' %}
+                    <a href="{{ url_for('diagnosis') }}">Diagnose</a>
+                    <a href="{{ url_for('chatbot') }}">Chatbot</a>
+                {% elif request.url.path == '/diagnosis' %}
+                    <a href="/">Home</a>
+                    <a href="{{ url_for('chatbot') }}">Chatbot</a>
+                {% elif request.url.path == '/chatbot' %}
+                    <a href="/">Home</a>
+                    <a href="{{ url_for('diagnosis') }}">Diagnose</a>
+                {% endif %}
+            </div>
         </nav>
     </header>
 
-
-    <!-- ===================================================== -->
-    <!-- MAIN CONTENT -->
-    <!-- ===================================================== -->
-
     <main>
-        {% block content %}
-        {% endblock %}
+        {% block content %}{% endblock %}
     </main>
 
-
-    <!-- ===================================================== -->
-    <!-- FOOTER -->
-    <!-- ===================================================== -->
-
     <footer>
-        <p>Plant Health Maize Project</p>
+        <p class="footer-title">Plant Health AI</p>
+        <p class="footer-subtitle">
+            AI-powered maize disease diagnosis and plant-health information.
+        </p>
     </footer>
 
-
-    {% block scripts %}
-    {% endblock %}
+    {% block scripts %}{% endblock %}
 
 </body>
 </html>
