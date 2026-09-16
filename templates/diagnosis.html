@@ -38,9 +38,19 @@
               action="{{ url_for('diagnose') }}"
               enctype="multipart/form-data">
 
-            <label for="image">
-                Select maize leaf image
-            </label>
+            <div class="upload-options">
+                <button type="button" class="upload-option" id="camera-button">
+                    <span class="upload-option-icon">&#128247;</span>
+                    <span class="upload-option-title">Take a Photo</span>
+                    <span class="upload-option-text">Use your device camera</span>
+                </button>
+
+                <button type="button" class="upload-option" id="upload-button">
+                    <span class="upload-option-icon">&#128193;</span>
+                    <span class="upload-option-title">Upload an Image</span>
+                    <span class="upload-option-text">Choose an existing image</span>
+                </button>
+            </div>
 
             <input
                 type="file"
@@ -48,13 +58,99 @@
                 name="image"
                 accept="image/*"
                 required
+                class="hidden-file-input"
             >
+
+            <p id="selected-file" class="selected-file"></p>
+
+            <div id="camera-panel" class="camera-panel" hidden>
+                <video id="camera-preview" autoplay playsinline></video>
+                <div class="camera-controls">
+                    <button type="button" id="capture-button">Capture Photo</button>
+                    <button type="button" id="close-camera-button">Cancel</button>
+                </div>
+                <canvas id="camera-canvas" hidden></canvas>
+            </div>
 
             <button type="submit">
                 Analyze Image
             </button>
 
         </form>
+
+        <script>
+            const imageInput = document.getElementById("image");
+            const cameraButton = document.getElementById("camera-button");
+            const uploadButton = document.getElementById("upload-button");
+            const selectedFile = document.getElementById("selected-file");
+            const cameraPanel = document.getElementById("camera-panel");
+            const cameraPreview = document.getElementById("camera-preview");
+            const cameraCanvas = document.getElementById("camera-canvas");
+            const captureButton = document.getElementById("capture-button");
+            const closeCameraButton = document.getElementById("close-camera-button");
+
+            let cameraStream = null;
+
+            cameraButton.addEventListener("click", async () => {
+                try {
+                    cameraStream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: { ideal: "environment" } },
+                        audio: false
+                    });
+
+                    cameraPreview.srcObject = cameraStream;
+                    cameraPanel.hidden = false;
+                } catch (error) {
+                    alert("Unable to access the camera. Please check your browser camera permission.");
+                    console.error(error);
+                }
+            });
+
+            captureButton.addEventListener("click", () => {
+                if (!cameraStream) return;
+
+                cameraCanvas.width = cameraPreview.videoWidth;
+                cameraCanvas.height = cameraPreview.videoHeight;
+
+                const context = cameraCanvas.getContext("2d");
+                context.drawImage(cameraPreview, 0, 0, cameraCanvas.width, cameraCanvas.height);
+
+                cameraCanvas.toBlob((blob) => {
+                    const file = new File([blob], "camera-photo.jpg", { type: "image/jpeg" });
+                    const dataTransfer = new DataTransfer();
+                    dataTransfer.items.add(file);
+                    imageInput.files = dataTransfer.files;
+                    selectedFile.textContent = "Photo captured: camera-photo.jpg";
+                    stopCamera();
+                }, "image/jpeg", 0.92);
+            });
+
+            closeCameraButton.addEventListener("click", () => {
+                stopCamera();
+            });
+
+            uploadButton.addEventListener("click", () => {
+                stopCamera();
+                imageInput.removeAttribute("capture");
+                imageInput.click();
+            });
+
+            imageInput.addEventListener("change", () => {
+                selectedFile.textContent = imageInput.files.length
+                    ? "Selected: " + imageInput.files[0].name
+                    : "";
+            });
+
+            function stopCamera() {
+                if (cameraStream) {
+                    cameraStream.getTracks().forEach(track => track.stop());
+                    cameraStream = null;
+                }
+
+                cameraPreview.srcObject = null;
+                cameraPanel.hidden = true;
+            }
+        </script>
 
     </div>
 
