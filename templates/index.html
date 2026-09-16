@@ -1,65 +1,213 @@
 {% extends "base.html" %}
 
-{% block title %}Home | Plant Health Maize Project{% endblock %}
+{% block title %}Home | Plant Health AI{% endblock %}
 
 {% block content %}
 
-<!-- ============================================================
-     HERO SECTION
-     ============================================================ -->
-
 <section class="hero">
 
-    <h1>Plant Health Maize Project</h1>
+    <div class="hero-badge">🌱 PLANT HEALTH AI</div>
+
+    <h1>
+        Making Plant Health<br>
+        <span>Information More Accessible</span>
+    </h1>
 
     <p>
-        An AI-powered system for maize disease diagnosis
-        and plant health information.
+        A plant-health platform designed to provide AI-assisted
+        maize disease detection and accessible information about
+        plant diseases, symptoms, transmission, favourable
+        conditions, and management.
     </p>
+
+    <div class="hero-actions">
+        <a href="{{ url_for('diagnosis') }}" class="button">
+            🔬 Diagnose a Maize Leaf
+        </a>
+
+        <a href="{{ url_for('chatbot') }}" class="button button-secondary">
+            💬 Ask the Plant Health AI
+        </a>
+    </div>
 
 </section>
 
 
-<!-- ============================================================
-     MAIN OPTIONS
-     ============================================================ -->
+<section class="project-introduction">
 
-<section class="home-options">
+    <div class="section-heading">
+        <span>WHY WE BUILT THIS PROJECT</span>
+        <h2>Helping people access useful plant-health information</h2>
+    </div>
 
-    <div class="option-card">
-
-        <h2>Diagnose a Maize Leaf</h2>
+    <div class="introduction-card">
 
         <p>
-            Upload an image of a maize leaf and let the trained
-            model analyze it for common maize diseases.
+            Plant diseases can reduce crop productivity, affect
+            food security, and create challenges for farmers and
+            other people involved in agriculture.
         </p>
 
         <p>
-            The system will provide a prediction together with
-            its confidence and relevant plant-health information.
+            We developed this project to explore how artificial
+            intelligence and a structured plant-health knowledge
+            base can be combined to make disease information
+            easier to access through a simple web application.
         </p>
 
-        <a href="{{ url_for('diagnosis') }}" class="button">
-           Diagnose a Maize Leaf
-        </a>
+        <p>
+            The system focuses its image-based diagnosis on maize,
+            while the plant-health knowledge base provides
+            information across multiple crops.
+        </p>
+
+    </div>
+
+</section>
+
+
+
+
+
+<section class="knowledge-section">
+
+    <div class="section-heading">
+
+        <span>PLANT HEALTH KNOWLEDGE</span>
+
+        <h2>Information organized around the questions that matter</h2>
+
+        <p>
+            The knowledge base is designed to present plant-health
+            information in a clear and structured way.
+        </p>
 
     </div>
 
 
-    <div class="option-card">
+    <div class="knowledge-grid">
 
-        <h2>Ask a Plant Health Question</h2>
+        <div class="knowledge-card">
+            <span>01</span>
+            <h3>Plant Diseases</h3>
+            <p>
+                Learn about plant-health problems affecting
+                different crops.
+            </p>
+        </div>
+
+        <div class="knowledge-card">
+            <span>02</span>
+            <h3>Symptoms</h3>
+            <p>
+                Understand the visible signs associated with
+                different diseases.
+            </p>
+        </div>
+
+        <div class="knowledge-card">
+            <span>03</span>
+            <h3>Transmission</h3>
+            <p>
+                Explore how plant diseases can spread between
+                plants and growing environments.
+            </p>
+        </div>
+
+        <div class="knowledge-card">
+            <span>04</span>
+            <h3>Favourable Conditions</h3>
+            <p>
+                Learn about conditions that can support disease
+                development and spread.
+            </p>
+        </div>
+
+        <div class="knowledge-card">
+            <span>05</span>
+            <h3>Management</h3>
+            <p>
+                Explore practical information about managing
+                plant-health problems.
+            </p>
+        </div>
+
+    </div>
+
+</section>
+
+
+<section class="how-it-works">
+
+    <div class="section-heading">
+
+        <span>HOW IT WORKS</span>
+
+        <h2>From image or question to useful information</h2>
+
+    </div>
+
+
+    <div class="steps">
+
+        <div class="step">
+
+            <div class="step-number">01</div>
+
+            <h3>Choose</h3>
+
+            <p>
+                Choose whether you want to analyze a maize leaf
+                or ask a plant-health question.
+            </p>
+
+        </div>
+
+
+        <div class="step">
+
+            <div class="step-number">02</div>
+
+            <h3>Analyze or Ask</h3>
+
+            <p>
+                Upload an image for AI-assisted analysis or
+                submit your question to the knowledge base.
+            </p>
+
+        </div>
+
+
+        <div class="step">
+
+            <div class="step-number">03</div>
+
+            <h3>Learn</h3>
+
+            <p>
+                Use the result or information to better understand
+                the plant-health problem.
+            </p>
+
+        </div>
+
+    </div>
+
+</section>
+
+
+<section class="home-note">
+
+    <div>
+
+        <strong>🌽 Focused on responsible plant-health information</strong>
 
         <p>
-            Ask questions about plant diseases, symptoms,
-            transmission, favourable conditions, management,
-            and other available plant-health information.
+            AI-based image analysis provides a prediction rather
+            than a guaranteed diagnosis. The knowledge base is
+            intended to make plant-health information easier to
+            understand and access.
         </p>
-
-        <a href="{{ url_for('chatbot') }}" class="button">
-            Ask a Plant Health Question
-        </a>
 
     </div>
 
