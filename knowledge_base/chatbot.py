@@ -11,205 +11,339 @@ from knowledge_base.database_postgresql import (
 
 def format_disease_profile(profile):
     """
-    Convert a complete disease profile into a readable
-    chatbot response.
+    Convert a complete disease profile into structured HTML
+    for the chatbot interface.
     """
 
     response = []
 
     response.append(
-        f"{profile['disease']} is a {profile['type']} "
-        f"health problem affecting {profile['crop']}."
+        f'<div class="disease-introduction">'
+        f'<h3>{profile["disease"]}</h3>'
+        f'<p>{profile["disease"]} is a {profile["type"]} '
+        f'health problem affecting {profile["crop"]}.</p>'
+        f'</div>'
     )
 
-    # -----------------------------------------------------
-    # PATHOGENS
-    # -----------------------------------------------------
-
     if profile["pathogens"]:
-
-        response.append("\nCausing organism(s):")
+        items = []
 
         for pathogen in profile["pathogens"]:
+            scientific_name = pathogen.get("scientific_name", "Unknown")
+            pathogen_type = pathogen.get("type", "Unknown")
+            role = pathogen.get("role", "")
 
-            scientific_name = pathogen.get(
-                "scientific_name",
-                "Unknown"
-            )
+            text = f"<strong>{scientific_name}</strong>"
 
-            pathogen_type = pathogen.get(
-                "type",
-                "Unknown"
-            )
-
-            role = pathogen.get(
-                "role",
-                ""
-            )
-
-            text = f"- {scientific_name} ({pathogen_type})"
+            if pathogen_type:
+                text += f" <em>({pathogen_type})</em>"
 
             if role:
-                text += f": {role}"
+                text += f" — {role}"
 
-            response.append(text)
+            items.append(f"<li>{text}</li>")
 
-    # -----------------------------------------------------
-    # SYMPTOMS
-    # -----------------------------------------------------
+        response.append(
+            '<section class="info-section">'
+            '<h4>Causing organism(s)</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            '</section>'
+        )
 
     if profile["symptoms"]:
-
-        response.append("\nSymptoms:")
+        items = []
 
         for symptom in profile["symptoms"]:
-
-            category = symptom.get(
-                "category",
-                ""
-            )
-
-            description = symptom.get(
-                "description",
-                ""
-            )
+            category = symptom.get("category", "")
+            description = symptom.get("description", "")
 
             if category:
-                response.append(
-                    f"- [{category}] {description}"
-                )
+                text = f"<strong>{category.title()}</strong> — {description}"
             else:
-                response.append(
-                    f"- {description}"
-                )
+                text = description
 
-    # -----------------------------------------------------
-    # TRANSMISSION
-    # -----------------------------------------------------
+            items.append(f"<li>{text}</li>")
+
+        response.append(
+            '<section class="info-section">'
+            '<h4>Symptoms</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            '</section>'
+        )
 
     if profile["transmission"]:
-
-        response.append("\nTransmission:")
+        items = []
 
         for item in profile["transmission"]:
+            method = item.get("method", "")
+            description = item.get("description", "")
 
-            method = item.get(
-                "method",
-                ""
-            )
+            if method:
+                text = f"<strong>{method.replace('_', ' ').title()}</strong> — {description}"
+            else:
+                text = description
 
-            description = item.get(
-                "description",
-                ""
-            )
+            items.append(f"<li>{text}</li>")
 
-            response.append(
-                f"- {method}: {description}"
-            )
-
-    # -----------------------------------------------------
-    # CONDITIONS
-    # -----------------------------------------------------
+        response.append(
+            '<section class="info-section">'
+            '<h4>Transmission</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            '</section>'
+        )
 
     if profile["conditions"]:
-
-        response.append("\nFavourable conditions:")
+        items = []
 
         for condition in profile["conditions"]:
+            factor = condition.get("factor", "")
+            value = condition.get("value", "")
+            description = condition.get("description", "")
 
-            factor = condition.get(
-                "factor",
-                ""
-            )
-
-            value = condition.get(
-                "value",
-                ""
-            )
-
-            description = condition.get(
-                "description",
-                ""
-            )
-
-            text = f"- {factor}"
+            text = f"<strong>{factor.replace('_', ' ').title()}</strong>"
 
             if value:
-                text += f" ({value})"
+                text += f" <em>({value})</em>"
 
             if description:
-                text += f": {description}"
+                text += f" — {description}"
 
-            response.append(text)
+            items.append(f"<li>{text}</li>")
 
-    # -----------------------------------------------------
-    # MANAGEMENT
-    # -----------------------------------------------------
+        response.append(
+            '<section class="info-section">'
+            '<h4>Favourable conditions</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            '</section>'
+        )
 
     if profile["management"]:
-
-        response.append("\nManagement:")
+        items = []
 
         for item in profile["management"]:
-
-            category = item.get(
-                "category",
-                ""
-            )
-
-            action = item.get(
-                "action",
-                ""
-            )
+            category = item.get("category", "")
+            action = item.get("action", "")
 
             if category:
-                response.append(
-                    f"- [{category}] {action}"
-                )
+                text = f"<strong>{category.title()}</strong> — {action}"
             else:
-                response.append(
-                    f"- {action}"
-                )
+                text = action
 
-    # -----------------------------------------------------
-    # SOURCES
-    # -----------------------------------------------------
+            items.append(f"<li>{text}</li>")
+
+        response.append(
+            '<section class="info-section">'
+            '<h4>Management</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            '</section>'
+        )
 
     if profile["sources"]:
-
-        response.append("\nSources:")
+        items = []
 
         for source in profile["sources"]:
+            organization = source.get("organization", "")
+            title = source.get("title", "")
+            url = source.get("url", "")
 
-            organization = source.get(
-                "organization",
-                ""
-            )
-
-            title = source.get(
-                "title",
-                ""
-            )
-
-            url = source.get(
-                "url",
-                ""
-            )
-
-            text = "- "
-
-            if organization:
-                text += organization
+            source_name = organization
 
             if title:
-                text += f": {title}"
+                source_name += f" — {title}" if source_name else title
 
             if url:
-                text += f"\n  {url}"
+                text = (
+                    f'<a href="{url}" target="_blank" rel="noopener noreferrer">'
+                    f'{source_name}</a>'
+                )
+            else:
+                text = source_name
 
-            response.append(text)
+            items.append(f"<li>{text}</li>")
 
-    return "\n".join(response)
+        response.append(
+            '<section class="info-section">'
+            '<h4>Sources</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            '</section>'
+        )
+
+    return "".join(response)
+
+
+# ---------------------------------------------------------
+# FORMAT REQUESTED INFORMATION
+# ---------------------------------------------------------
+
+def format_requested_information(profile, intent):
+    """
+    Return the requested information as structured HTML.
+    """
+
+    sections = []
+
+    if intent == "symptoms":
+        items = []
+
+        for symptom in profile["symptoms"]:
+            category = symptom.get("category", "")
+            description = symptom.get("description", "")
+
+            if category:
+                text = f"<strong>{category.title()}</strong> — {description}"
+            else:
+                text = description
+
+            items.append(f"<li>{text}</li>")
+
+        return (
+            f'<div class="disease-introduction">'
+            f'<h3>{profile["disease"]}</h3>'
+            f'</div>'
+            f'<section class="info-section">'
+            f'<h4>Symptoms</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            f'</section>'
+        )
+
+    if intent == "pathogens":
+        items = []
+
+        for pathogen in profile["pathogens"]:
+            scientific_name = pathogen.get("scientific_name", "")
+            pathogen_type = pathogen.get("type", "")
+            role = pathogen.get("role", "")
+
+            text = f"<strong>{scientific_name}</strong>"
+
+            if pathogen_type:
+                text += f" <em>({pathogen_type})</em>"
+
+            if role:
+                text += f" — {role}"
+
+            items.append(f"<li>{text}</li>")
+
+        return (
+            f'<div class="disease-introduction">'
+            f'<h3>{profile["disease"]}</h3>'
+            f'</div>'
+            f'<section class="info-section">'
+            f'<h4>Causing organism(s)</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            f'</section>'
+        )
+
+    if intent == "transmission":
+        items = []
+
+        for item in profile["transmission"]:
+            method = item.get("method", "")
+            description = item.get("description", "")
+
+            text = (
+                f"<strong>{method.replace('_', ' ').title()}</strong>"
+                f" — {description}"
+            )
+
+            items.append(f"<li>{text}</li>")
+
+        return (
+            f'<div class="disease-introduction">'
+            f'<h3>{profile["disease"]}</h3>'
+            f'</div>'
+            f'<section class="info-section">'
+            f'<h4>Transmission</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            f'</section>'
+        )
+
+    if intent == "conditions":
+        items = []
+
+        for condition in profile["conditions"]:
+            factor = condition.get("factor", "")
+            value = condition.get("value", "")
+            description = condition.get("description", "")
+
+            text = f"<strong>{factor.replace('_', ' ').title()}</strong>"
+
+            if value:
+                text += f" <em>({value})</em>"
+
+            if description:
+                text += f" — {description}"
+
+            items.append(f"<li>{text}</li>")
+
+        return (
+            f'<div class="disease-introduction">'
+            f'<h3>{profile["disease"]}</h3>'
+            f'</div>'
+            f'<section class="info-section">'
+            f'<h4>Favourable conditions</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            f'</section>'
+        )
+
+    if intent == "management":
+        items = []
+
+        for item in profile["management"]:
+            category = item.get("category", "")
+            action = item.get("action", "")
+
+            if category:
+                text = f"<strong>{category.title()}</strong> — {action}"
+            else:
+                text = action
+
+            items.append(f"<li>{text}</li>")
+
+        return (
+            f'<div class="disease-introduction">'
+            f'<h3>{profile["disease"]}</h3>'
+            f'</div>'
+            f'<section class="info-section">'
+            f'<h4>Management</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            f'</section>'
+        )
+
+    if intent == "sources":
+        items = []
+
+        for source in profile["sources"]:
+            organization = source.get("organization", "")
+            title = source.get("title", "")
+            url = source.get("url", "")
+
+            source_name = organization
+
+            if title:
+                source_name += f" — {title}" if source_name else title
+
+            if url:
+                text = (
+                    f'<a href="{url}" target="_blank" rel="noopener noreferrer">'
+                    f'{source_name}</a>'
+                )
+            else:
+                text = source_name
+
+            items.append(f"<li>{text}</li>")
+
+        return (
+            f'<div class="disease-introduction">'
+            f'<h3>{profile["disease"]}</h3>'
+            f'</div>'
+            f'<section class="info-section">'
+            f'<h4>Sources</h4>'
+            f'<ul>{"".join(items)}</ul>'
+            f'</section>'
+        )
+
+    return format_disease_profile(profile)
 
 
 # ---------------------------------------------------------
