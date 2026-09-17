@@ -15,6 +15,7 @@ CNN classes:
 import os
 import sys
 
+import joblib
 import numpy as np
 import tensorflow as tf
 
@@ -45,6 +46,14 @@ MODEL_PATH = os.path.join(
 
 IMAGE_SIZE = (320, 320)
 
+MAIZE_GATE_MODEL_PATH = os.path.join(
+    PROJECT_DIR,
+    "training_output",
+    "maize_gate_logistic_regression.joblib"
+)
+
+MAIZE_GATE_THRESHOLD = 0.45
+
 
 # ============================================================
 # LOAD MODEL
@@ -64,6 +73,52 @@ model = tf.keras.models.load_model(
 
 print("V3 MobileNetV2 model loaded successfully.")
 
+print("Loading maize gate model...")
+
+if not os.path.exists(MAIZE_GATE_MODEL_PATH):
+    raise FileNotFoundError(
+        f"Maize gate model not found:\n{MAIZE_GATE_MODEL_PATH}"
+    )
+
+maize_gate_model = joblib.load(
+    MAIZE_GATE_MODEL_PATH
+)
+
+print("Maize gate model loaded successfully.")
+
+
+# ============================================================
+# MAIZE GATE FEATURE EXTRACTOR
+# ============================================================
+
+maize_feature_extractor = tf.keras.Model(
+    inputs=model.input,
+    outputs=model.get_layer("global_average_pooling2d").output
+)
+
+
+def check_maize_gate(image_array):
+    """Check whether an image appears to contain maize."""
+
+    features = maize_feature_extractor.predict(
+        image_array,
+        verbose=0
+    )
+
+    maize_probability = float(
+        maize_gate_model.predict_proba(features)[0, 1]
+    )
+
+    is_maize = (
+        maize_probability >= MAIZE_GATE_THRESHOLD
+    )
+
+    return {
+        "is_maize": is_maize,
+        "maize_probability": maize_probability,
+        "maize_gate_threshold": MAIZE_GATE_THRESHOLD
+    }
+
 
 # ============================================================
 # PREDICT IMAGE
@@ -78,9 +133,20 @@ def predict_image(image_path):
         - Global confidence threshold: 70%
         - Blight ↔ Gray Leaf Spot: caution pair
 
-    Returns a dictionary containing:
+    Returns a dictionary containing maize-gate fields and, when
+    accepted by the gate, the disease classification fields.
+
+    Maize gate fields:
 
         image_path
+        is_maize
+        maize_probability
+        maize_gate_threshold
+        maize_gate_status
+        rejection_reason
+
+    Disease classification fields:
+
         class_index
         class_name
         confidence
@@ -116,39 +182,55 @@ def predict_image(image_path):
     # ========================================================
     # LOAD IMAGE
     # ========================================================
-
-    image = tf.keras.utils.load_img(
-        image_path,
-        target_size=IMAGE_SIZE
+    image = tf.io.read_file(image_path)
+    image = tf.image.decode_image(
+        image,
+        channels=3,
+        expand_animations=False,
     )
-
-    # ========================================================
-    # CONVERT IMAGE TO ARRAY
-    # ========================================================
-
-    image_array = tf.keras.utils.img_to_array(
+    image = tf.image.resize(image, IMAGE_SIZE)
+    image = tf.cast(image, tf.float32)
+    image_array = tf.keras.applications.mobilenet_v2.preprocess_input(
         image
     )
-
-    # ========================================================
-    # MOBILENETV2 PREPROCESSING
-    #
-    # Matches V3 training/evaluation preprocessing.
-    # Converts pixel values from [0, 255] to [-1, 1].
-    # ========================================================
-
-    image_array = tf.keras.applications.mobilenet_v2.preprocess_input(
-        image_array
-    )
-
-    # ========================================================
-    # ADD BATCH DIMENSION
-    # ========================================================
-
     image_array = np.expand_dims(
         image_array,
         axis=0
     )
+
+    # ========================================================
+    # MAIZE GATE
+    #
+    # Reject images that do not appear to contain maize
+    # before running the disease classifier.
+    # ========================================================
+
+    gate_result = check_maize_gate(
+        image_array
+    )
+
+    if not gate_result["is_maize"]:
+
+        return {
+            "image_path": image_path,
+            "is_maize": False,
+            "maize_probability": gate_result["maize_probability"],
+            "maize_gate_threshold": gate_result["maize_gate_threshold"],
+            "maize_gate_status": "rejected",
+            "class_index": None,
+            "class_name": None,
+            "confidence": None,
+            "confidence_threshold": CONFIDENCE_THRESHOLD,
+            "confidence_status": "not_run",
+            "caution_required": False,
+            "caution_reason": None,
+            "health_problem_id": None,
+            "is_healthy": None,
+            "rejection_reason": (
+                "The uploaded image does not appear to contain maize. "
+                "Please upload a clear image of a maize plant or leaf."
+            )
+        }
 
     # ========================================================
     # CNN PREDICTION
@@ -222,6 +304,14 @@ def predict_image(image_path):
     result = {
 
         "image_path": image_path,
+
+        "is_maize": True,
+
+        "maize_probability": gate_result["maize_probability"],
+
+        "maize_gate_threshold": gate_result["maize_gate_threshold"],
+
+        "maize_gate_status": "accepted",
 
         "class_index": class_index,
 
