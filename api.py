@@ -351,7 +351,7 @@ async def diagnose_api(
             result["is_healthy"],
 
         "disease_profile":
-            result["disease_profile"]
+            result.get("disease_profile")
     }
 
 
