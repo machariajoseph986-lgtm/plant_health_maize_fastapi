@@ -7,3 +7,10 @@ static/uploads/*
 !static/uploads/.gitkeep
 api.py.backup
 .DS_Store
+
+data/maize_gate/
+training_output/maize_gate_features/
+hard_negatives_preview.jpg
+hard_training_negatives.jpg
+validation_false_positives.jpg
+validation_hard_negatives.jpg
