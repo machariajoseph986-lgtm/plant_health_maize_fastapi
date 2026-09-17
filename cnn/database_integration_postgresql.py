@@ -55,6 +55,9 @@ def diagnose_from_image(image_path):
         image_path
     )
 
+    if prediction.get("is_maize") is False:
+        return prediction
+
     class_index = prediction["class_index"]
     class_name = prediction["class_name"]
     confidence = prediction["confidence"]

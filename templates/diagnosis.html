@@ -182,6 +182,25 @@
         </div>
 
 
+        {% if result.is_maize == false %}
+
+        <div class="confidence-status confidence-uncertain">
+
+            <h3>Image Not Recognized as Maize</h3>
+
+            <p>
+                {{ result.rejection_reason }}
+            </p>
+
+            <p>
+                <strong>Maize confidence:</strong>
+                {{ "%.2f"|format(result.maize_probability * 100) }}%
+            </p>
+
+        </div>
+
+        {% else %}
+
         <!-- ====================================================
              PREDICTION INFORMATION
              ==================================================== -->
@@ -291,6 +310,8 @@
 
         {% endif %}
 
+
+        {% endif %}
     </div>
 
     {% endif %}
