@@ -903,6 +903,55 @@ main {
     border: 1px solid rgba(180, 60, 60, 0.2);
 }
 
+.diagnosis-assistance {
+    max-width: 720px;
+    margin: 30px auto;
+    padding: 28px;
+    border-radius: 18px;
+    background: #F8FCF9;
+    border: 1px solid rgba(45, 106, 79, 0.14);
+}
+
+.diagnosis-assistance > h2 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: #2D6A4F;
+}
+
+.assistance-section {
+    margin-top: 28px;
+    padding-top: 24px;
+    border-top: 1px solid rgba(45, 106, 79, 0.12);
+}
+
+.assistance-section h3 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    color: #24543F;
+}
+
+.assistance-section p {
+    line-height: 1.7;
+}
+
+.assistance-section ul {
+    margin: 0;
+    padding-left: 22px;
+}
+
+.assistance-section li {
+    margin-bottom: 12px;
+    line-height: 1.65;
+}
+
+.assistance-section li:last-child {
+    margin-bottom: 0;
+}
+
+.assistance-section strong {
+    color: #24543F;
+}
+
 .diagnosis-notice {
     max-width: 720px;
     margin: 0 auto;
