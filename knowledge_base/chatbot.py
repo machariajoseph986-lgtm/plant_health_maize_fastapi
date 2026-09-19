@@ -404,6 +404,23 @@ def detect_intent(user_input):
     ]):
         return "conditions"
 
+    # Chemical treatment
+    if any(phrase in text for phrase in [
+        "which chemical",
+        "what chemical",
+        "which chemicals",
+        "what chemicals",
+        "active ingredient",
+        "active ingredients",
+        "fungicide",
+        "fungicides",
+        "insecticide",
+        "insecticides",
+        "chemical treatment",
+        "chemical treatments"
+    ]):
+        return "chemical_treatment"
+
     # Management
     if any(word in text for word in [
         "management",
@@ -436,231 +453,211 @@ def detect_intent(user_input):
 
 def format_requested_information(profile, intent):
     """
-    Return only the section requested by the user.
+    Return the requested information as clean structured HTML.
     """
 
-    # -----------------------------------------------------
-    # SYMPTOMS
-    # -----------------------------------------------------
+    disease = profile["disease"]
+
+    def section(title, items, category_key=None, text_key="description"):
+        blocks = []
+
+        for item in items:
+            label = item.get(category_key, "") if category_key else ""
+            text = item.get(text_key, "")
+
+            if not text:
+                continue
+
+            if label:
+                blocks.append(
+                    f'<div class="chatbot-item">'
+                    f'<strong>{label.replace("_", " ").title()}</strong>'
+                    f'<p>{text}</p>'
+                    f'</div>'
+                )
+            else:
+                blocks.append(
+                    f'<div class="chatbot-item">'
+                    f'<p>{text}</p>'
+                    f'</div>'
+                )
+
+        if not blocks:
+            return (
+                f'<section class="info-section">'
+                f'<h4>{title}</h4>'
+                f'<p>No information is currently available in the knowledge base.</p>'
+                f'</section>'
+            )
+
+        return (
+            f'<section class="info-section">'
+            f'<h4>{title}</h4>'
+            f'{"".join(blocks)}'
+            f'</section>'
+        )
 
     if intent == "symptoms":
-
-        response = [
-            f"Symptoms of {profile['disease']}:"
-        ]
-
-        for symptom in profile["symptoms"]:
-
-            category = symptom.get(
-                "category",
-                ""
-            )
-
-            description = symptom.get(
-                "description",
-                ""
-            )
-
-            if category:
-                response.append(
-                    f"- [{category}] {description}"
-                )
-            else:
-                response.append(
-                    f"- {description}"
-                )
-
-        return "\n".join(response)
-
-    # -----------------------------------------------------
-    # PATHOGENS
-    # -----------------------------------------------------
+        return (
+            f'<div class="disease-introduction"><h3>{disease}</h3></div>'
+            + section("Symptoms", profile["symptoms"], "category", "description")
+        )
 
     if intent == "pathogens":
+        blocks = []
+        for item in profile["pathogens"]:
+            name = item.get("scientific_name", "")
+            pathogen_type = item.get("type", "")
+            role = item.get("role", "")
 
-        response = [
-            f"Cause/pathogens associated with "
-            f"{profile['disease']}:"
-        ]
+            if not name:
+                continue
 
-        for pathogen in profile["pathogens"]:
-
-            scientific_name = pathogen.get(
-                "scientific_name",
-                ""
-            )
-
-            pathogen_type = pathogen.get(
-                "type",
-                ""
-            )
-
-            role = pathogen.get(
-                "role",
-                ""
-            )
-
-            text = f"- {scientific_name}"
-
+            details = f'<p><em>{name}</em>'
             if pathogen_type:
-                text += f" ({pathogen_type})"
-
+                details += f' ({pathogen_type})'
             if role:
-                text += f": {role}"
+                details += f'<br>{role}'
+            details += '</p>'
 
-            response.append(text)
+            blocks.append(
+                f'<div class="chatbot-item"><strong>Causing organism</strong>{details}</div>'
+            )
 
-        return "\n".join(response)
-
-    # -----------------------------------------------------
-    # TRANSMISSION
-    # -----------------------------------------------------
+        return (
+            f'<div class="disease-introduction"><h3>{disease}</h3></div>'
+            f'<section class="info-section"><h4>Causing organism(s)</h4>'
+            f'{"".join(blocks) or "<p>No pathogen information is currently available in the knowledge base.</p>"}'
+            f'</section>'
+        )
 
     if intent == "transmission":
-
-        response = [
-            f"Transmission of {profile['disease']}:"
-        ]
-
-        for item in profile["transmission"]:
-
-            method = item.get(
-                "method",
-                ""
-            )
-
-            description = item.get(
-                "description",
-                ""
-            )
-
-            response.append(
-                f"- {method}: {description}"
-            )
-
-        return "\n".join(response)
-
-    # -----------------------------------------------------
-    # CONDITIONS
-    # -----------------------------------------------------
+        return (
+            f'<div class="disease-introduction"><h3>{disease}</h3></div>'
+            + section("Transmission", profile["transmission"], "method", "description")
+        )
 
     if intent == "conditions":
+        blocks = []
+        for item in profile["conditions"]:
+            factor = item.get("factor", "")
+            value = item.get("value", "")
+            description = item.get("description", "")
 
-        response = [
-            f"Favourable conditions for "
-            f"{profile['disease']}:"
-        ]
+            if not factor and not description:
+                continue
 
-        for condition in profile["conditions"]:
+            label = factor.replace("_", " ").title() if factor else "Condition"
+            text = description or value
 
-            factor = condition.get(
-                "factor",
-                ""
+            if description and value:
+                text = f"{value}. {description}"
+
+            blocks.append(
+                f'<div class="chatbot-item">'
+                f'<strong>{label}</strong>'
+                f'<p>{text}</p>'
+                f'</div>'
             )
 
-            value = condition.get(
-                "value",
-                ""
+        return (
+            f'<div class="disease-introduction"><h3>{disease}</h3></div>'
+            f'<section class="info-section"><h4>Favourable conditions</h4>'
+            f'{"".join(blocks) or "<p>No condition information is currently available in the knowledge base.</p>"}'
+            f'</section>'
+        )
+
+    if intent == "chemical_treatment":
+        blocks = []
+        for item in profile.get("chemical_management", []):
+            treatment_type = item.get("treatment_type", "")
+            chemical_role = item.get("chemical_role", "")
+            active_ingredient = item.get("active_ingredient", "")
+            timing = item.get("application_timing", "")
+            guidance = item.get("application_guidance", "")
+            safety = item.get("safety_notes", "")
+
+            title = active_ingredient if active_ingredient and active_ingredient.lower() != "none" else treatment_type
+            if not title:
+                title = "Chemical-management option"
+
+            details = []
+            if treatment_type and title != treatment_type:
+                details.append(f"<p><strong>Type:</strong> {treatment_type}</p>")
+            if chemical_role:
+                details.append(f"<p><strong>Role:</strong> {chemical_role}</p>")
+            if timing and timing.lower() != "not applicable":
+                details.append(f"<p><strong>Timing:</strong> {timing}</p>")
+            if guidance:
+                details.append(f"<p><strong>Guidance:</strong> {guidance}</p>")
+            if safety:
+                details.append(f"<p><strong>Safety:</strong> {safety}</p>")
+
+            blocks.append(
+                f'<div class="chatbot-item">'
+                f'<strong>{title}</strong>'
+                f'{"".join(details)}'
+                f'</div>'
             )
 
-            description = condition.get(
-                "description",
-                ""
-            )
-
-            text = f"- {factor}"
-
-            if value:
-                text += f" ({value})"
-
-            if description:
-                text += f": {description}"
-
-            response.append(text)
-
-        return "\n".join(response)
-
-    # -----------------------------------------------------
-    # MANAGEMENT
-    # -----------------------------------------------------
+        return (
+            f'<div class="disease-introduction"><h3>{disease}</h3></div>'
+            f'<section class="info-section"><h4>Chemical treatment information</h4>'
+            f'{"".join(blocks) or "<p>No chemical treatment information is currently available in the knowledge base.</p>"}'
+            f'</section>'
+        )
 
     if intent == "management":
-
-        response = [
-            f"Management information for "
-            f"{profile['disease']}:"
-        ]
+        unique_management = []
+        seen_management = set()
 
         for item in profile["management"]:
+            category = item.get("category", "")
+            action = item.get("action", "")
+            key = (category.strip().lower(), action.strip().lower())
 
-            category = item.get(
-                "category",
-                ""
-            )
+            if key in seen_management:
+                continue
 
-            action = item.get(
-                "action",
-                ""
-            )
+            seen_management.add(key)
+            unique_management.append(item)
 
-            if category:
-                response.append(
-                    f"- [{category}] {action}"
-                )
-            else:
-                response.append(
-                    f"- {action}"
-                )
-
-        return "\n".join(response)
-
-    # -----------------------------------------------------
-    # SOURCES
-    # -----------------------------------------------------
+        return (
+            f'<div class="disease-introduction"><h3>{disease}</h3></div>'
+            + section("Management", unique_management, "category", "action")
+        )
 
     if intent == "sources":
-
-        response = [
-            f"Sources for {profile['disease']}:"
-        ]
-
+        blocks = []
         for source in profile["sources"]:
+            organization = source.get("organization", "")
+            title = source.get("title", "")
+            url = source.get("url", "")
 
-            organization = source.get(
-                "organization",
-                ""
-            )
+            if not title and not url:
+                continue
 
-            title = source.get(
-                "title",
-                ""
-            )
-
-            url = source.get(
-                "url",
-                ""
-            )
-
-            text = "- "
-
-            if organization:
-                text += organization
-
-            if title:
-                text += f": {title}"
+            label = organization or "Source"
+            text = title or url
 
             if url:
-                text += f"\n  {url}"
+                text = f'<a href="{url}" target="_blank" rel="noopener noreferrer">{text}</a>'
 
-            response.append(text)
+            blocks.append(
+                f'<div class="chatbot-item">'
+                f'<strong>{label}</strong>'
+                f'<p>{text}</p>'
+                f'</div>'
+            )
 
-        return "\n".join(response)
+        return (
+            f'<div class="disease-introduction"><h3>{disease}</h3></div>'
+            f'<section class="info-section"><h4>Sources</h4>'
+            f'{"".join(blocks) or "<p>No sources are currently available in the knowledge base.</p>"}'
+            f'</section>'
+        )
 
-    # -----------------------------------------------------
-    # DEFAULT: COMPLETE PROFILE
-    # -----------------------------------------------------
-
-    return format_disease_profile(profile)
+    return "<p>The requested information is not available.</p>"
 
 
 # ---------------------------------------------------------
@@ -717,10 +714,14 @@ def search_disease(search_term):
 # CHATBOT RESPONSE
 # ---------------------------------------------------------
 
-def chatbot_response(user_input):
+def chatbot_response(user_input, health_problem_id=None):
     """
     Process a user question and retrieve grounded
     information from the knowledge base.
+
+    When health_problem_id is provided, the chatbot uses
+    that diagnosis context instead of identifying the
+    disease from the user question.
     """
 
     text = user_input.strip().lower()
@@ -754,10 +755,33 @@ def chatbot_response(user_input):
         return "\n".join(response)
 
     # -----------------------------------------------------
+    # DIAGNOSIS CONTEXT
+    # -----------------------------------------------------
+
+    if health_problem_id:
+
+        profile = get_disease_profile(
+            health_problem_id
+        )
+
+        if profile is None:
+            return (
+                "The diagnosis context could not be retrieved "
+                "from the knowledge base."
+            )
+
+        intent = detect_intent(user_input)
+
+        return format_requested_information(
+            profile,
+            intent
+        )
+
+    # -----------------------------------------------------
     # DETECT DISEASE
     # -----------------------------------------------------
 
-        # Disease-specific phrases must be checked BEFORE
+    # Disease-specific phrases must be checked BEFORE
     # generic plant names. Otherwise, a question such as
     # "What are the symptoms of maize common rust?"
     # may match "maize" first and return multiple diseases.
