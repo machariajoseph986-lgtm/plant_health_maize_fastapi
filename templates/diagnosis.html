@@ -924,9 +924,11 @@
 
                     <h3>Important Caution</h3>
 
-                    <p>
-                        {{ finding.caution_reason }}
-                    </p>
+                    <ul>
+                        {% for reason in finding.caution_reasons %}
+                        <li>{{ reason }}</li>
+                        {% endfor %}
+                    </ul>
 
                 </div>
 
