@@ -333,7 +333,7 @@ async def diagnose_api(
 
         raise HTTPException(
             status_code=500,
-            detail=f"Diagnosis failed: {str(error)}"
+            detail="Diagnosis failed. One or more uploaded images could not be read. Please upload valid JPG, JPEG, PNG, or WEBP images."
         )
 
     return {
@@ -377,7 +377,7 @@ async def diagnose_api(
 )
 async def diagnose_page(
     request: Request,
-    images: list[UploadFile] = File(...)
+    images: list[UploadFile] = File(default=[])
 ):
     """
     Process up to 5 diagnosis images and render the diagnosis page.
@@ -497,7 +497,7 @@ async def diagnose_page(
 
         raise HTTPException(
             status_code=500,
-            detail=f"Diagnosis failed: {str(error)}"
+            detail="Diagnosis failed. One or more uploaded images could not be read. Please upload valid JPG, JPEG, PNG, or WEBP images."
         )
 
     return templates.TemplateResponse(
