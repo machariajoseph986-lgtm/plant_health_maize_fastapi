@@ -377,68 +377,123 @@ async def diagnose_api(
 )
 async def diagnose_page(
     request: Request,
-    image: UploadFile = File(...)
+    images: list[UploadFile] = File(...)
 ):
     """
-    Process the diagnosis form and render the diagnosis page.
+    Process up to 5 diagnosis images and render the diagnosis page.
     """
 
-    if not image.filename:
+    MAX_IMAGES = 5
+    MAX_TOTAL_BYTES = 30 * 1024 * 1024
+
+    if not images:
         raise HTTPException(
             status_code=400,
-            detail="No image filename was provided."
+            detail="Please upload at least one image."
         )
 
-    if not allowed_file(image.filename):
+    if len(images) > MAX_IMAGES:
         raise HTTPException(
             status_code=400,
-            detail=(
-                "Unsupported image format. "
-                "Use JPG, JPEG, PNG, or WEBP."
+            detail="You can analyze a maximum of 5 images per case."
+        )
+
+    allowed_extensions = {
+        ".jpg",
+        ".jpeg",
+        ".png",
+        ".webp"
+    }
+
+    total_bytes = 0
+
+    for image in images:
+
+        if not image.filename:
+            raise HTTPException(
+                status_code=400,
+                detail="One of the uploaded files has no filename."
             )
-        )
 
-    file_extension = os.path.splitext(
-        image.filename
-    )[1].lower()
+        extension = os.path.splitext(
+            image.filename
+        )[1].lower()
 
-    filename = (
-        f"{uuid.uuid4().hex}"
-        f"{file_extension}"
-    )
+        if extension not in allowed_extensions:
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Unsupported image format. "
+                    "Use JPG, JPEG, PNG, or WEBP."
+                )
+            )
 
-    image_path = os.path.join(
-        UPLOAD_FOLDER,
-        filename
-    )
-
-    image_bytes = await image.read()
-
-    with open(
-        image_path,
-        "wb"
-    ) as file:
-
-        file.write(
-            image_bytes
-        )
+    saved_paths = []
 
     try:
 
+        for image in images:
+
+            image_bytes = await image.read()
+
+            total_bytes += len(image_bytes)
+
+            if total_bytes > MAX_TOTAL_BYTES:
+                raise HTTPException(
+                    status_code=400,
+                    detail=(
+                        "The total size of the uploaded images "
+                        "must not exceed 30 MB per case."
+                    )
+                )
+
+            file_extension = os.path.splitext(
+                image.filename
+            )[1].lower()
+
+            filename = (
+                f"{uuid.uuid4().hex}"
+                f"{file_extension}"
+            )
+
+            image_path = os.path.join(
+                UPLOAD_FOLDER,
+                filename
+            )
+
+            with open(
+                image_path,
+                "wb"
+            ) as file:
+
+                file.write(
+                    image_bytes
+                )
+
+            saved_paths.append(image_path)
+
+
         from cnn.database_integration_postgresql import (
-            diagnose_from_image
+            diagnose_from_images
         )
 
-        result = diagnose_from_image(
-            image_path
+        result = diagnose_from_images(
+            saved_paths
         )
 
-        result["image_path"] = image_path
+        result["image_paths"] = saved_paths
+
+    except HTTPException:
+        for saved_path in saved_paths:
+            if os.path.exists(saved_path):
+                os.remove(saved_path)
+        raise
 
     except Exception as error:
 
-        if os.path.exists(image_path):
-            os.remove(image_path)
+        for saved_path in saved_paths:
+            if os.path.exists(saved_path):
+                os.remove(saved_path)
 
         raise HTTPException(
             status_code=500,
