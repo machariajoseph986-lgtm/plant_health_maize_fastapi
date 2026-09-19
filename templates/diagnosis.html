@@ -4,449 +4,1184 @@
 
 {% block content %}
 
-<!-- ============================================================
-     DIAGNOSIS PAGE
-     ============================================================ -->
-
 <section class="diagnosis-page">
 
     <div class="diagnosis-header">
-
         <h1>Maize Disease Diagnosis</h1>
-
         <p>
-            Upload an image of a maize leaf to analyze its
-            health condition using the trained AI model.
+            Upload up to 5 images of maize leaves to analyze their
+            health conditions using the trained AI model.
         </p>
-
     </div>
 
 
     <!-- ========================================================
-         IMAGE UPLOAD AREA
+         UPLOAD CARD
          ======================================================== -->
 
     <div class="upload-card">
 
-        <h2>Upload a Maize Leaf Image</h2>
+        <h2>Upload Maize Leaf Images</h2>
 
         <p>
-            Choose a clear image of a maize leaf for analysis.
+            Add up to 5 clear images. You can upload existing images
+            and/or take photos using your device camera.
         </p>
 
         <form method="POST"
               action="{{ url_for('diagnose') }}"
-              enctype="multipart/form-data">
+              enctype="multipart/form-data"
+              id="diagnosis-form">
 
             <div class="upload-options">
-                <button type="button" class="upload-option" id="camera-button">
+
+                <button type="button"
+                        class="upload-option"
+                        id="camera-button">
+
                     <span class="upload-option-icon">&#128247;</span>
-                    <span class="upload-option-title">Take a Photo</span>
-                    <span class="upload-option-text">Use your device camera</span>
+
+                    <span class="upload-option-title">
+                        Take a Photo
+                    </span>
+
+                    <span class="upload-option-text">
+                        Use your device camera
+                    </span>
+
                 </button>
 
-                <button type="button" class="upload-option" id="upload-button">
+
+                <button type="button"
+                        class="upload-option"
+                        id="upload-button">
+
                     <span class="upload-option-icon">&#128193;</span>
-                    <span class="upload-option-title">Upload an Image</span>
-                    <span class="upload-option-text">Choose an existing image</span>
+
+                    <span class="upload-option-title">
+                        Add Images
+                    </span>
+
+                    <span class="upload-option-text">
+                        Choose existing images
+                    </span>
+
                 </button>
+
             </div>
+
 
             <input
                 type="file"
                 id="image"
-                name="image"
-                accept="image/*"
-                required
+                name="images"
+                accept="image/jpeg,image/png,image/webp"
+                multiple
                 class="hidden-file-input"
             >
 
-            <p id="selected-file" class="selected-file"></p>
 
-            <div id="camera-panel" class="camera-panel" hidden>
-                <video id="camera-preview" autoplay playsinline></video>
-                <div class="camera-controls">
-                    <button type="button" id="capture-button">Capture Photo</button>
-                    <button type="button" id="close-camera-button">Cancel</button>
-                </div>
-                <canvas id="camera-canvas" hidden></canvas>
+            <div id="image-selection-status"
+                 class="image-selection-status">
+
+                No images selected.
+
             </div>
 
-            <button type="submit">
-                Analyze Image
+
+            <div id="image-preview-container"
+                 class="image-preview-container"
+                 hidden>
+
+                <h3>Selected Images</h3>
+
+                <div id="image-preview-grid"
+                     class="image-preview-grid">
+                </div>
+
+            </div>
+
+
+            <!-- ====================================================
+                 CAMERA
+                 ==================================================== -->
+
+            <div id="camera-panel"
+                 class="camera-panel"
+                 hidden>
+
+                <video id="camera-preview"
+                       autoplay
+                       playsinline>
+                </video>
+
+                <div class="camera-controls">
+
+                    <button type="button"
+                            id="capture-button">
+
+                        Capture Photo
+
+                    </button>
+
+                    <button type="button"
+                            id="close-camera-button">
+
+                        Cancel
+
+                    </button>
+
+                </div>
+
+                <canvas id="camera-canvas"
+                        hidden>
+                </canvas>
+
+            </div>
+
+
+            <div id="upload-validation-message"
+                 class="upload-validation-message"
+                 hidden>
+            </div>
+
+
+            <button type="submit"
+                    id="analyze-button"
+                    disabled>
+
+                Analyze Images
+
             </button>
 
         </form>
 
+
         <script>
-            const imageInput = document.getElementById("image");
-            const cameraButton = document.getElementById("camera-button");
-            const uploadButton = document.getElementById("upload-button");
-            const selectedFile = document.getElementById("selected-file");
-            const cameraPanel = document.getElementById("camera-panel");
-            const cameraPreview = document.getElementById("camera-preview");
-            const cameraCanvas = document.getElementById("camera-canvas");
-            const captureButton = document.getElementById("capture-button");
-            const closeCameraButton = document.getElementById("close-camera-button");
+
+            const imageInput =
+                document.getElementById("image");
+
+            const cameraButton =
+                document.getElementById("camera-button");
+
+            const uploadButton =
+                document.getElementById("upload-button");
+
+            const cameraPanel =
+                document.getElementById("camera-panel");
+
+            const cameraPreview =
+                document.getElementById("camera-preview");
+
+            const cameraCanvas =
+                document.getElementById("camera-canvas");
+
+            const captureButton =
+                document.getElementById("capture-button");
+
+            const closeCameraButton =
+                document.getElementById("close-camera-button");
+
+            const previewContainer =
+                document.getElementById("image-preview-container");
+
+            const previewGrid =
+                document.getElementById("image-preview-grid");
+
+            const selectionStatus =
+                document.getElementById("image-selection-status");
+
+            const validationMessage =
+                document.getElementById("upload-validation-message");
+
+            const analyzeButton =
+                document.getElementById("analyze-button");
+
+            const diagnosisForm =
+                document.getElementById("diagnosis-form");
+
+
+            const MAX_IMAGES = 5;
+
+            const MAX_TOTAL_BYTES =
+                30 * 1024 * 1024;
+
+            const ALLOWED_TYPES = [
+                "image/jpeg",
+                "image/png",
+                "image/webp"
+            ];
+
+
+            let selectedFiles = [];
 
             let cameraStream = null;
 
-            cameraButton.addEventListener("click", async () => {
-                try {
-                    cameraStream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: { ideal: "environment" } },
-                        audio: false
-                    });
 
-                    cameraPreview.srcObject = cameraStream;
-                    cameraPanel.hidden = false;
-                } catch (error) {
-                    alert("Unable to access the camera. Please check your browser camera permission.");
-                    console.error(error);
+            /* =====================================================
+               FILE MANAGEMENT
+               ===================================================== */
+
+            function addFiles(files) {
+
+                clearValidationMessage();
+
+                const incomingFiles =
+                    Array.from(files);
+
+
+                for (const file of incomingFiles) {
+
+                    if (!ALLOWED_TYPES.includes(file.type)) {
+
+                        showValidationMessage(
+                            "Unsupported image type: " +
+                            file.name +
+                            ". Please use JPG, PNG, or WEBP."
+                        );
+
+                        continue;
+                    }
+
+
+                    if (selectedFiles.length >= MAX_IMAGES) {
+
+                        showValidationMessage(
+                            "You can analyze a maximum of 5 images per case."
+                        );
+
+                        break;
+                    }
+
+
+                    selectedFiles.push(file);
+
                 }
-            });
 
-            captureButton.addEventListener("click", () => {
-                if (!cameraStream) return;
 
-                cameraCanvas.width = cameraPreview.videoWidth;
-                cameraCanvas.height = cameraPreview.videoHeight;
+                updateImageInput();
 
-                const context = cameraCanvas.getContext("2d");
-                context.drawImage(cameraPreview, 0, 0, cameraCanvas.width, cameraCanvas.height);
+                renderPreviews();
 
-                cameraCanvas.toBlob((blob) => {
-                    const file = new File([blob], "camera-photo.jpg", { type: "image/jpeg" });
-                    const dataTransfer = new DataTransfer();
+                validateSelection();
+
+            }
+
+
+            function removeFile(index) {
+
+                selectedFiles.splice(index, 1);
+
+                updateImageInput();
+
+                renderPreviews();
+
+                validateSelection();
+
+            }
+
+
+            function updateImageInput() {
+
+                const dataTransfer =
+                    new DataTransfer();
+
+
+                selectedFiles.forEach(file => {
+
                     dataTransfer.items.add(file);
-                    imageInput.files = dataTransfer.files;
-                    selectedFile.textContent = "Photo captured: camera-photo.jpg";
+
+                });
+
+
+                imageInput.files =
+                    dataTransfer.files;
+
+            }
+
+
+            /* =====================================================
+               PREVIEWS
+               ===================================================== */
+
+            function renderPreviews() {
+
+                previewGrid.innerHTML = "";
+
+
+                if (selectedFiles.length === 0) {
+
+                    previewContainer.hidden = true;
+
+                    selectionStatus.textContent =
+                        "No images selected.";
+
+                    return;
+
+                }
+
+
+                previewContainer.hidden = false;
+
+
+                selectionStatus.textContent =
+                    selectedFiles.length +
+                    " of " +
+                    MAX_IMAGES +
+                    " images selected.";
+
+
+                selectedFiles.forEach((file, index) => {
+
+                    const wrapper =
+                        document.createElement("div");
+
+                    wrapper.className =
+                        "image-preview-item";
+
+
+                    const image =
+                        document.createElement("img");
+
+                    image.alt =
+                        "Selected maize image " +
+                        (index + 1);
+
+
+                    const objectUrl =
+                        URL.createObjectURL(file);
+
+                    image.src = objectUrl;
+
+
+                    image.onload = () => {
+
+                        URL.revokeObjectURL(objectUrl);
+
+                    };
+
+
+                    const details =
+                        document.createElement("div");
+
+                    details.className =
+                        "image-preview-details";
+
+
+                    const name =
+                        document.createElement("span");
+
+                    name.className =
+                        "image-preview-name";
+
+                    name.textContent =
+                        file.name;
+
+
+                    const removeButton =
+                        document.createElement("button");
+
+                    removeButton.type =
+                        "button";
+
+                    removeButton.className =
+                        "remove-image-button";
+
+                    removeButton.textContent =
+                        "Remove";
+
+                    removeButton.addEventListener(
+                        "click",
+                        () => removeFile(index)
+                    );
+
+
+                    details.appendChild(name);
+
+                    details.appendChild(removeButton);
+
+
+                    wrapper.appendChild(image);
+
+                    wrapper.appendChild(details);
+
+
+                    previewGrid.appendChild(wrapper);
+
+                });
+
+            }
+
+
+            /* =====================================================
+               VALIDATION
+               ===================================================== */
+
+            function validateSelection() {
+
+                clearValidationMessage();
+
+
+                if (selectedFiles.length === 0) {
+
+                    analyzeButton.disabled = true;
+
+                    return false;
+
+                }
+
+
+                if (selectedFiles.length > MAX_IMAGES) {
+
+                    showValidationMessage(
+                        "You can analyze a maximum of 5 images per case."
+                    );
+
+                    analyzeButton.disabled = true;
+
+                    return false;
+
+                }
+
+
+                const totalBytes =
+                    selectedFiles.reduce(
+                        (total, file) =>
+                            total + file.size,
+                        0
+                    );
+
+
+                if (totalBytes > MAX_TOTAL_BYTES) {
+
+                    const totalMb =
+                        totalBytes /
+                        (1024 * 1024);
+
+
+                    showValidationMessage(
+                        "The total image size is " +
+                        totalMb.toFixed(1) +
+                        " MB. The maximum allowed is 30 MB per case."
+                    );
+
+                    analyzeButton.disabled = true;
+
+                    return false;
+
+                }
+
+
+                analyzeButton.disabled = false;
+
+                return true;
+
+            }
+
+
+            function showValidationMessage(message) {
+
+                validationMessage.textContent =
+                    message;
+
+                validationMessage.hidden = false;
+
+            }
+
+
+            function clearValidationMessage() {
+
+                validationMessage.textContent =
+                    "";
+
+                validationMessage.hidden = true;
+
+            }
+
+
+            /* =====================================================
+               FILE PICKER
+               ===================================================== */
+
+            uploadButton.addEventListener(
+                "click",
+                () => {
+
                     stopCamera();
-                }, "image/jpeg", 0.92);
-            });
 
-            closeCameraButton.addEventListener("click", () => {
-                stopCamera();
-            });
+                    imageInput.click();
 
-            uploadButton.addEventListener("click", () => {
-                stopCamera();
-                imageInput.removeAttribute("capture");
-                imageInput.click();
-            });
+                }
+            );
 
-            imageInput.addEventListener("change", () => {
-                selectedFile.textContent = imageInput.files.length
-                    ? "Selected: " + imageInput.files[0].name
-                    : "";
-            });
+
+            imageInput.addEventListener(
+                "change",
+                () => {
+
+                    addFiles(imageInput.files);
+
+                }
+            );
+
+
+            /* =====================================================
+               CAMERA
+               ===================================================== */
+
+            cameraButton.addEventListener(
+                "click",
+                async () => {
+
+                    if (selectedFiles.length >= MAX_IMAGES) {
+
+                        showValidationMessage(
+                            "You already have 5 images selected. Remove an image before taking another photo."
+                        );
+
+                        return;
+
+                    }
+
+
+                    clearValidationMessage();
+
+
+                    try {
+
+                        cameraStream =
+                            await navigator.mediaDevices.getUserMedia({
+
+                                video: {
+                                    facingMode: {
+                                        ideal: "environment"
+                                    }
+                                },
+
+                                audio: false
+
+                            });
+
+
+                        cameraPreview.srcObject =
+                            cameraStream;
+
+                        cameraPanel.hidden = false;
+
+                    }
+
+                    catch (error) {
+
+                        alert(
+                            "Unable to access the camera. Please check your browser camera permission."
+                        );
+
+                        console.error(error);
+
+                    }
+
+                }
+            );
+
+
+            captureButton.addEventListener(
+                "click",
+                () => {
+
+                    if (!cameraStream) {
+
+                        return;
+
+                    }
+
+
+                    if (selectedFiles.length >= MAX_IMAGES) {
+
+                        showValidationMessage(
+                            "You can analyze a maximum of 5 images per case."
+                        );
+
+                        stopCamera();
+
+                        return;
+
+                    }
+
+
+                    cameraCanvas.width =
+                        cameraPreview.videoWidth;
+
+                    cameraCanvas.height =
+                        cameraPreview.videoHeight;
+
+
+                    const context =
+                        cameraCanvas.getContext("2d");
+
+
+                    context.drawImage(
+                        cameraPreview,
+                        0,
+                        0,
+                        cameraCanvas.width,
+                        cameraCanvas.height
+                    );
+
+
+                    cameraCanvas.toBlob(
+                        (blob) => {
+
+                            if (!blob) {
+
+                                showValidationMessage(
+                                    "Unable to capture the photo. Please try again."
+                                );
+
+                                return;
+
+                            }
+
+
+                            const photoNumber =
+                                selectedFiles.length + 1;
+
+
+                            const file =
+                                new File(
+                                    [
+                                        blob
+                                    ],
+                                    "camera-photo-" +
+                                    photoNumber +
+                                    ".jpg",
+                                    {
+                                        type:
+                                            "image/jpeg"
+                                    }
+                                );
+
+
+                            addFiles([file]);
+
+                            stopCamera();
+
+                        },
+                        "image/jpeg",
+                        0.92
+                    );
+
+                }
+            );
+
+
+            closeCameraButton.addEventListener(
+                "click",
+                () => {
+
+                    stopCamera();
+
+                }
+            );
+
 
             function stopCamera() {
+
                 if (cameraStream) {
-                    cameraStream.getTracks().forEach(track => track.stop());
+
+                    cameraStream
+                        .getTracks()
+                        .forEach(
+                            track => track.stop()
+                        );
+
                     cameraStream = null;
+
                 }
 
-                cameraPreview.srcObject = null;
-                cameraPanel.hidden = true;
+
+                cameraPreview.srcObject =
+                    null;
+
+                cameraPanel.hidden =
+                    true;
+
             }
+
+
+            /* =====================================================
+               FORM SUBMISSION
+               ===================================================== */
+
+            diagnosisForm.addEventListener(
+                "submit",
+                (event) => {
+
+                    if (!validateSelection()) {
+
+                        event.preventDefault();
+
+                        return;
+
+                    }
+
+
+                    updateImageInput();
+
+                }
+            );
+
+
+            renderPreviews();
+
+            validateSelection();
+
         </script>
 
     </div>
 
 
-    <!-- ========================================================
-         DIAGNOSIS RESULT
-         ======================================================== -->
-
     {% if result %}
+
+    <!-- ========================================================
+         DIAGNOSIS RESULTS
+         ======================================================== -->
 
     <div class="result-card">
 
-        <h2>Diagnosis Result</h2>
+        <h2>Diagnosis Results</h2>
 
 
-        <!-- ====================================================
-             ANALYZED IMAGE
-             ==================================================== -->
+        <div class="diagnosis-summary">
 
-        <div class="result-image">
+            <p>
+                <strong>Images submitted:</strong>
+                {{ result.total_images }}
+            </p>
 
-            <h3>Analyzed Image</h3>
 
-            <img
-                src="/static/{{ result.image_path.replace('\\', '/').replace('static/', '', 1) }}"
-                alt="Uploaded maize leaf image"
-            >
+            {% if result.contributing_images %}
+
+            <p>
+                <strong>Images used for disease analysis:</strong>
+                {{ result.contributing_images | length }}
+            </p>
+
+            {% endif %}
+
+
+            {% if result.excluded_images %}
+
+            <p>
+                <strong>Images excluded:</strong>
+                {{ result.excluded_images }}
+            </p>
+
+            {% endif %}
 
         </div>
 
 
-        {% if result.is_maize == false %}
+        <!-- ====================================================
+             DIAGNOSTIC FINDINGS
+             ==================================================== -->
 
-        <div class="confidence-status confidence-uncertain">
+        {% if result.diagnostic_findings %}
 
-            <h3>Image Not Recognized as Maize</h3>
+        <div class="diagnostic-findings">
 
-            <p>
-                {{ result.rejection_reason }}
-            </p>
+            {% set finding_count =
+                result.diagnostic_findings|length
+            %}
 
-            <p>
-                <strong>Maize confidence:</strong>
-                {{ "%.2f"|format(result.maize_probability * 100) }}%
-            </p>
+
+            <h3>
+
+                {% if finding_count == 1 %}
+
+                    One condition was identified
+                    across the {{ result.total_images }} image{% if result.total_images != 1 %}s{% endif %}:
+
+                {% else %}
+
+                    {{ finding_count }}
+                    different conditions were identified
+                    across the {{ result.total_images }} images:
+
+                {% endif %}
+
+            </h3>
+
+
+            {% for finding in result.diagnostic_findings %}
+
+            <div class="diagnostic-finding">
+
+                <div class="diagnostic-finding-header">
+
+                    <h2>
+                        {% if finding.class_name == "Gray_Leaf_Spot" %}
+                            Gray Leaf Spot
+                        {% elif finding.class_name == "Common_Rust" %}
+                            Common Rust
+                        {% elif finding.class_name == "Blight" %}
+                            Blight
+                        {% else %}
+                            {{ finding.class_name|replace("_", " ") }}
+                        {% endif %}
+                    </h2>
+
+
+                    <span class="finding-count">
+
+                        {{ finding.image_count }}
+                        image{% if finding.image_count != 1 %}s{% endif %}
+
+                    </span>
+
+                </div>
+
+
+                {% if finding.average_confidence is not none %}
+
+                <p>
+                    <strong>Average confidence:</strong>
+                    {{ "%.2f"|format(finding.average_confidence * 100) }}%
+                </p>
+
+                {% endif %}
+
+
+                {% if finding.finding_status == "identified" %}
+
+                <div class="confidence-status confidence-accepted">
+
+                    <strong>Status: Identified</strong>
+
+                    <p>
+                        The model produced an accepted prediction
+                        for the contributing image{% if finding.image_count != 1 %}s{% endif %}.
+                    </p>
+
+                </div>
+
+                {% elif finding.finding_status == "identified_with_uncertainty" %}
+
+                <div class="confidence-status confidence-uncertain">
+
+                    <strong>Status: Identified with uncertainty</strong>
+
+                    <p>
+                        Some contributing images produced predictions
+                        below the system's acceptance threshold.
+                    </p>
+
+                </div>
+
+                {% else %}
+
+                <div class="confidence-status confidence-uncertain">
+
+                    <strong>Status: Possible finding</strong>
+
+                    <p>
+                        The available image evidence did not reach
+                        the system's acceptance threshold.
+                    </p>
+
+                </div>
+
+                {% endif %}
+
+
+                {% if finding.image_paths %}
+
+                <div class="finding-images">
+
+                    <h3>Images contributing to this finding</h3>
+
+                    <div class="result-image-grid">
+
+                        {% for image_path in finding.image_paths %}
+
+                        <img
+                            src="/static/{{ image_path.replace('\\', '/').replace('static/', '', 1) }}"
+                            alt="Image contributing to diagnosis finding"
+                        >
+
+                        {% endfor %}
+
+                    </div>
+
+                </div>
+
+                {% endif %}
+
+
+                {% if finding.caution_required %}
+
+                <div class="caution-notice">
+
+                    <h3>Important Caution</h3>
+
+                    <p>
+                        {{ finding.caution_reason }}
+                    </p>
+
+                </div>
+
+                {% endif %}
+
+
+                {% if finding.health_problem_id
+                      and not finding.is_healthy
+                      and finding.disease_profile %}
+
+                <div class="diagnosis-assistance">
+
+                    <h2>What does this mean?</h2>
+
+                    <p>
+                        {{ finding.disease_profile.description }}
+                    </p>
+
+
+                    {% if finding.disease_profile.symptoms %}
+
+                    <div class="assistance-section">
+
+                        <h3>Symptoms to look for</h3>
+
+                        <ul>
+
+                            {% for symptom
+                                  in finding.disease_profile.symptoms %}
+
+                            <li>
+
+                                {% if symptom.category %}
+
+                                <strong>
+                                    {{ symptom.category
+                                       |replace("_", " ")
+                                       |title }}:
+                                </strong>
+
+                                {% endif %}
+
+                                {{ symptom.description }}
+
+                            </li>
+
+                            {% endfor %}
+
+                        </ul>
+
+                    </div>
+
+                    {% endif %}
+
+
+                    {% if finding.disease_profile.management %}
+
+                    <div class="assistance-section">
+
+                        <h3>What should I do?</h3>
+
+                        <ul>
+
+                            {% for item
+                                  in finding.disease_profile.management %}
+
+                            <li>
+
+                                {% if item.category %}
+
+                                <strong>
+                                    {{ item.category
+                                       |replace("_", " ")
+                                       |title }}:
+                                </strong>
+
+                                {% endif %}
+
+                                {{ item.action }}
+
+                            </li>
+
+                            {% endfor %}
+
+                        </ul>
+
+                    </div>
+
+                    {% endif %}
+
+
+                    {% if finding.disease_profile.chemical_management %}
+
+                    <div class="assistance-section">
+
+                        <h3>Treatment options</h3>
+
+                        <p>
+                            The knowledge base contains the following
+                            chemical-management options. Exact products,
+                            formulations, application rates, and legal use
+                            depend on locally registered products and their
+                            labels. Always follow the product label and
+                            required safety precautions.
+                        </p>
+
+                        <ul>
+
+                            {% for chemical
+                                  in finding.disease_profile.chemical_management %}
+
+                            <li>
+
+                                <strong>
+                                    {{ chemical.active_ingredient
+                                       or "No specific active ingredient listed" }}
+                                </strong>
+
+                                {% if chemical.chemical_class %}
+
+                                ({{ chemical.chemical_class }})
+
+                                {% endif %}
+
+                                {% if chemical.application_timing %}
+
+                                - <strong>Timing:</strong>
+                                {{ chemical.application_timing }}
+
+                                {% endif %}
+
+                                {% if chemical.application_guidance %}
+
+                                <br>
+                                <strong>Guidance:</strong>
+                                {{ chemical.application_guidance }}
+
+                                {% endif %}
+
+                                {% if chemical.safety_notes %}
+
+                                <br>
+                                <strong>Safety:</strong>
+                                {{ chemical.safety_notes }}
+
+                                {% endif %}
+
+                            </li>
+
+                            {% endfor %}
+
+                        </ul>
+
+                    </div>
+
+                    {% endif %}
+
+
+                    {% if finding.disease_profile.conditions %}
+
+                    <div class="assistance-section">
+
+                        <h3>
+                            Conditions that can favour the disease
+                        </h3>
+
+                        <ul>
+
+                            {% for condition
+                                  in finding.disease_profile.conditions %}
+
+                            <li>
+
+                                {% if condition.factor %}
+
+                                <strong>
+                                    {{ condition.factor
+                                       |replace("_", " ")
+                                       |title }}:
+                                </strong>
+
+                                {% endif %}
+
+                                {{ condition.description
+                                   or condition.value }}
+
+                            </li>
+
+                            {% endfor %}
+
+                        </ul>
+
+                    </div>
+
+                    {% endif %}
+
+
+                    <div class="diagnosis-actions">
+
+                        <h2>What would you like to do next?</h2>
+
+                        <p>
+                            Ask follow-up questions about this finding,
+                            including management, prevention, symptoms,
+                            or chemical treatment options.
+                        </p>
+
+                        <a
+                            href="/chatbot?health_problem_id={{ finding.health_problem_id }}"
+                            class="primary-button"
+                        >
+                            Ask about this diagnosis
+                        </a>
+
+                    </div>
+
+                </div>
+
+                {% endif %}
+
+
+                {% if finding.class_name == "Healthy" %}
+
+                <div class="health-status healthy-status">
+
+                    <p>
+                        <strong>Health status:</strong>
+                        Healthy
+                    </p>
+
+                    <p>
+                        No disease-specific assistance is required
+                        for this finding.
+                    </p>
+
+                </div>
+
+                {% endif %}
+
+            </div>
+
+            {% endfor %}
 
         </div>
 
         {% else %}
 
-        <!-- ====================================================
-             PREDICTION INFORMATION
-             ==================================================== -->
-
-        <div class="result-details">
-
-            <p>
-                <strong>Prediction:</strong>
-                {{ result.class_name }}
-            </p>
-
-            <p>
-                <strong>Confidence:</strong>
-                {{ "%.2f"|format(result.confidence * 100) }}%
-            </p>
-
-
-            <!-- ================================================
-                 CONFIDENCE STATUS
-                 ================================================ -->
-
-            {% if result.confidence_status == "accepted" %}
-
-            <div class="confidence-status confidence-accepted">
-
-                <strong>Prediction status: Accepted</strong>
-
-                <p>
-                    The model's confidence is above the system's
-                    acceptance threshold.
-                </p>
-
-            </div>
-
-            {% else %}
-
-            <div class="confidence-status confidence-uncertain">
-
-                <strong>Prediction status: Uncertain</strong>
-
-                <p>
-                    The model's confidence is below the system's
-                    acceptance threshold. This prediction should
-                    not be treated as a confirmed diagnosis.
-                </p>
-
-            </div>
-
-            {% endif %}
-
-
-            {% if result.is_healthy %}
-
-            <p>
-                <strong>Health status:</strong>
-                Healthy
-            </p>
-
-            {% else %}
-
-            <p>
-                <strong>Health status:</strong>
-                Potential disease detected
-            </p>
-
-            {% endif %}
-
-        </div>
-
-
-        <!-- ====================================================
-             CAUTION NOTICE
-             ==================================================== -->
-
-        {% if result.caution_required %}
-
-        <div class="caution-notice">
-
-            <h3>Important Caution</h3>
-
-            <p>
-                {{ result.caution_reason }}
-            </p>
-
-        </div>
-
-        {% endif %}
-
-
-        <!-- ====================================================
-             POST-DIAGNOSIS ASSISTANCE
-             ==================================================== -->
-
-        {% if result.confidence_status == "accepted" and result.health_problem_id and not result.is_healthy and result.disease_profile %}
-
-        <div class="diagnosis-assistance">
-
-            <h2>What does this mean?</h2>
-
-            <p>
-                {{ result.disease_profile.description }}
-            </p>
-
-            {% if result.disease_profile.symptoms %}
-
-            <div class="assistance-section">
-
-                <h3>Symptoms to look for</h3>
-
-                <ul>
-                    {% for symptom in result.disease_profile.symptoms %}
-                    <li>
-                        {% if symptom.category %}
-                        <strong>{{ symptom.category|replace("_", " ")|title }}:</strong>
-                        {% endif %}
-                        {{ symptom.description }}
-                    </li>
-                    {% endfor %}
-                </ul>
-
-            </div>
-
-            {% endif %}
-
-            {% if result.disease_profile.management %}
-
-            <div class="assistance-section">
-
-                <h3>What should I do?</h3>
-
-                <ul>
-                    {% for item in result.disease_profile.management %}
-                    <li>
-                        {% if item.category %}
-                        <strong>{{ item.category|replace("_", " ")|title }}:</strong>
-                        {% endif %}
-                        {{ item.action }}
-                    </li>
-                    {% endfor %}
-                </ul>
-
-            </div>
-
-            {% endif %}
-
-            {% if result.disease_profile.chemical_management %}
-
-            <div class="assistance-section">
-
-                <h3>Treatment options</h3>
-
-                <p>
-                    The knowledge base contains the following chemical-management
-                    options. Exact products, formulations, application rates, and
-                    legal use depend on locally registered products and their labels.
-                    Always follow the product label and required safety precautions.
-                </p>
-
-                <ul>
-                    {% for chemical in result.disease_profile.chemical_management %}
-                    <li>
-                        <strong>{{ chemical.active_ingredient or "No specific active ingredient listed" }}</strong>
-                        {% if chemical.chemical_class %}
-                        ({{ chemical.chemical_class }})
-                        {% endif %}
-                        {% if chemical.application_timing %}
-                        - <strong>Timing:</strong> {{ chemical.application_timing }}
-                        {% endif %}
-                        {% if chemical.application_guidance %}
-                        <br><strong>Guidance:</strong> {{ chemical.application_guidance }}
-                        {% endif %}
-                        {% if chemical.safety_notes %}
-                        <br><strong>Safety:</strong> {{ chemical.safety_notes }}
-                        {% endif %}
-                    </li>
-                    {% endfor %}
-                </ul>
-
-            </div>
-
-            {% endif %}
-
-            {% if result.disease_profile.conditions %}
-
-            <div class="assistance-section">
-
-                <h3>Conditions that can favour the disease</h3>
-
-                <ul>
-                    {% for condition in result.disease_profile.conditions %}
-                    <li>
-                        {% if condition.factor %}
-                        <strong>{{ condition.factor|replace("_", " ")|title }}:</strong>
-                        {% endif %}
-                        {{ condition.description or condition.value }}
-                    </li>
-                    {% endfor %}
-                </ul>
-
-            </div>
-
-            {% endif %}
-
-        </div>
-
-        {% endif %}
-
-
-        <!-- ====================================================
-             FOLLOW-UP ACTION
-             ==================================================== -->
-
-        {% if result.health_problem_id and not result.is_healthy %}
-
-        <div class="diagnosis-actions">
-
-            <h2>What would you like to do next?</h2>
-
-            <p>
-                Ask follow-up questions about this diagnosis,
-                including management, prevention, symptoms,
-                or chemical treatment options.
-            </p>
-
-            <a
-                href="/chatbot?health_problem_id={{ result.health_problem_id }}"
-                class="primary-button"
-            >
-                Ask about this diagnosis
-            </a>
-
-        </div>
-
-        {% endif %}
-
-
-        {% if result.confidence_status == "uncertain" %}
-
         <div class="uncertain-notice">
 
-            <h3>Uncertain Prediction</h3>
+            <h3>No diagnostic finding reached the reporting criteria</h3>
 
             <p>
-                The model is not sufficiently confident in this
-                prediction. The result should not be treated as
-                a confirmed diagnosis.
+                The submitted images did not produce a sufficiently
+                reliable diagnostic finding. Please try again with
+                clear images showing the maize leaf.
             </p>
 
         </div>
@@ -454,7 +1189,122 @@
         {% endif %}
 
 
+        <!-- ====================================================
+             EXCLUDED IMAGES
+             ==================================================== -->
+
+        {% if result.excluded_image_results %}
+
+        <div class="excluded-images-notice">
+
+            <h3>Images excluded from disease analysis</h3>
+
+            <p>
+                Some submitted images did not appear to contain maize.
+                They were excluded rather than being forced into a
+                maize disease prediction.
+            </p>
+
+
+            {% for excluded in result.excluded_image_results %}
+
+            <div class="excluded-image-item">
+
+                {% if excluded.image_path %}
+
+                <img
+                    src="/static/{{ excluded.image_path.replace('\\', '/').replace('static/', '', 1) }}"
+                    alt="Excluded uploaded image"
+                >
+
+                {% endif %}
+
+
+                <div>
+
+                    <strong>
+                        Image {{ loop.index }}
+                    </strong>
+
+                    {% if excluded.maize_probability is not none %}
+
+                    <p>
+                        Maize confidence:
+                        {{ "%.2f"|format(excluded.maize_probability * 100) }}%
+                    </p>
+
+                    {% endif %}
+
+                    <p>
+                        {{ excluded.rejection_reason }}
+                    </p>
+
+                </div>
+
+            </div>
+
+            {% endfor %}
+
+        </div>
+
         {% endif %}
+
+
+        <!-- ====================================================
+             IMAGE-LEVEL DETAILS
+             ==================================================== -->
+
+        {% if result.image_results %}
+
+        <details class="image-result-details">
+
+            <summary>
+                View individual image analysis details
+            </summary>
+
+            <div class="image-result-list">
+
+                {% for image_result in result.image_results %}
+
+                <div class="image-result-item">
+
+                    <h3>
+                        Image {{ loop.index }}
+                    </h3>
+
+
+                    {% if image_result.is_maize == false %}
+
+                    <p>
+                        <strong>Maize gate:</strong>
+                        Rejected
+                    </p>
+
+                    {% elif image_result.class_name %}
+
+                    <p>
+                        <strong>Prediction:</strong>
+                        {{ image_result.class_name
+                           |replace("_", " ") }}
+                    </p>
+
+                    <p>
+                        <strong>Confidence:</strong>
+                        {{ "%.2f"|format(image_result.confidence * 100) }}%
+                    </p>
+
+                    {% endif %}
+
+                </div>
+
+                {% endfor %}
+
+            </div>
+
+        </details>
+
+        {% endif %}
+
     </div>
 
     {% endif %}
@@ -469,10 +1319,9 @@
         <h2>Important</h2>
 
         <p>
-            The system provides an AI-based prediction and
-            confidence level. Results should not be treated as
-            a certain diagnosis, especially when the system
-            reports an uncertain prediction.
+            The system provides AI-based predictions and confidence
+            levels. Results should not be treated as certain diagnoses,
+            especially when the system reports uncertainty.
         </p>
 
     </div>
