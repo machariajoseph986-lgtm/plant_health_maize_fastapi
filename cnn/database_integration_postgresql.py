@@ -18,7 +18,10 @@ if PROJECT_DIR not in sys.path:
 # IMPORT PROJECT COMPONENTS
 # ============================================================
 
-from cnn.predictor import predict_image
+from cnn.predictor import (
+    predict_image,
+    predict_images
+)
 from cnn.mapping import get_prediction_mapping
 from knowledge_base.database_postgresql import get_disease_profile
 
@@ -165,6 +168,97 @@ def diagnose_from_image(image_path):
             disease_profile
     }
 
+def diagnose_from_images(image_paths):
+    """
+    Complete plant-health diagnosis pipeline for multiple images.
+
+    Each image is evaluated independently by the CNN maize gate
+    and disease classifier. Matching disease findings are grouped,
+    and each disease finding receives its PostgreSQL profile once.
+
+    Healthy findings do not receive a disease profile.
+
+    Returns:
+        A dictionary containing:
+            - total_images
+            - image_results
+            - contributing_images
+            - excluded_images
+            - diagnostic_findings
+    """
+
+    if not image_paths:
+        raise ValueError(
+            "At least one image is required for diagnosis."
+        )
+
+    prediction_result = predict_images(
+        image_paths
+    )
+
+    diagnostic_findings = []
+
+    for finding in prediction_result[
+        "diagnostic_findings"
+    ]:
+
+        finding_result = dict(
+            finding
+        )
+
+        is_healthy = finding[
+            "is_healthy"
+        ]
+
+        health_problem_id = finding[
+            "health_problem_id"
+        ]
+
+        if (
+            not is_healthy
+            and health_problem_id
+        ):
+
+            finding_result[
+                "disease_profile"
+            ] = get_disease_profile(
+                health_problem_id
+            )
+
+        else:
+
+            finding_result[
+                "disease_profile"
+            ] = None
+
+        diagnostic_findings.append(
+            finding_result
+        )
+
+    return {
+        "total_images":
+            prediction_result[
+                "total_images"
+            ],
+
+        "image_results":
+            prediction_result[
+                "image_results"
+            ],
+
+        "contributing_images":
+            prediction_result[
+                "contributing_images"
+            ],
+
+        "excluded_images":
+            prediction_result[
+                "excluded_images"
+            ],
+
+        "diagnostic_findings":
+            diagnostic_findings
+    }
 
 # ============================================================
 # COMMAND-LINE TEST
