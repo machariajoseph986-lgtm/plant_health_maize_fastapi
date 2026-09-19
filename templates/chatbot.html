@@ -21,7 +21,29 @@
 
     <div class="chatbot-container">
 
-        <form method="POST" action="{{ url_for('chatbot') }}">
+        {% if diagnosis_profile %}
+        <div class="diagnosis-context">
+            <h2>Discussing this diagnosis</h2>
+            <p>
+                <strong>{{ diagnosis_profile.disease }}</strong>
+                ({{ diagnosis_profile.crop }})
+            </p>
+            <p>
+                You can ask follow-up questions about this diagnosis,
+                including management, prevention, symptoms, or chemical treatment.
+            </p>
+        </div>
+        {% endif %}
+
+        <form method="POST" action="{{ url_for('chatbot_submit') }}">
+
+            {% if health_problem_id %}
+            <input
+                type="hidden"
+                name="health_problem_id"
+                value="{{ health_problem_id }}"
+            >
+            {% endif %}
 
             <label for="question">
                 Your question
