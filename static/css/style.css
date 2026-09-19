@@ -1423,3 +1423,81 @@ main {
         width: 100%;
     }
 }
+
+/* Selected image preview sizing */
+.image-preview-grid {
+    display: grid;
+    width: 100%;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+}
+
+@media (max-width: 760px) {
+    .image-preview-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .image-preview-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.image-preview-item {
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 12px;
+}
+
+.image-preview-item img {
+    width: 100%;
+    height: 180px;
+    object-fit: contain;
+    border-radius: 12px;
+    background: #f4f6f4;
+}
+
+.image-preview-details {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.image-preview-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Images contributing to each diagnostic finding */
+.finding-images {
+    margin-top: 24px;
+}
+
+.result-image-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    width: 100%;
+}
+
+.result-image-grid img {
+    display: block;
+    width: 100%;
+    height: 240px;
+    object-fit: contain;
+    border-radius: 12px;
+    border: 1px solid #d5ddd2;
+    background: #f4f6f4;
+}
+
+@media (max-width: 600px) {
+    .result-image-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
