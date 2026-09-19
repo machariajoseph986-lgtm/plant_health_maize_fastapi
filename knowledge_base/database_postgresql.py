@@ -83,6 +83,7 @@ def get_disease_profile(health_problem_id):
         "transmission": [],
         "conditions": [],
         "management": [],
+        "chemical_management": [],
         "sources": []
     }
 
@@ -133,6 +134,22 @@ def get_disease_profile(health_problem_id):
             FROM management
             WHERE health_problem_id = %s
             ORDER BY management_id
+        """,
+
+        "chemical_management": """
+            SELECT
+                treatment_type,
+                chemical_role,
+                active_ingredient,
+                chemical_class,
+                application_timing,
+                application_guidance,
+                resistance_management,
+                safety_notes,
+                source_id
+            FROM chemical_management
+            WHERE health_problem_id = %s
+            ORDER BY chemical_management_id
         """,
 
         "sources": """
@@ -213,6 +230,26 @@ def get_disease_profile(health_problem_id):
                 {
                     "category": row[0],
                     "action": row[1]
+                }
+                for row in cursor.fetchall()
+            ]
+
+            cursor.execute(
+                detail_queries["chemical_management"],
+                (health_problem_id,)
+            )
+
+            profile["chemical_management"] = [
+                {
+                    "treatment_type": row[0],
+                    "chemical_role": row[1],
+                    "active_ingredient": row[2],
+                    "chemical_class": row[3],
+                    "application_timing": row[4],
+                    "application_guidance": row[5],
+                    "resistance_management": row[6],
+                    "safety_notes": row[7],
+                    "source_id": row[8]
                 }
                 for row in cursor.fetchall()
             ]
