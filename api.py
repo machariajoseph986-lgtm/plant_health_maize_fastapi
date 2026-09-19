@@ -126,12 +126,23 @@ async def diagnosis_page(request: Request):
     response_class=HTMLResponse,
     name="chatbot"
 )
-async def chatbot_page(request: Request):
+async def chatbot_page(
+    request: Request,
+    health_problem_id: str | None = None
+):
+    diagnosis_profile = None
+
+    if health_problem_id:
+        from knowledge_base.database_postgresql import get_disease_profile
+        diagnosis_profile = get_disease_profile(health_problem_id)
+
     return templates.TemplateResponse(
         request=request,
         name="chatbot.html",
         context={
-            "response": None
+            "response": None,
+            "health_problem_id": health_problem_id,
+            "diagnosis_profile": diagnosis_profile
         }
     )
 
@@ -471,7 +482,8 @@ async def chat(
         )
 
         response = chatbot_response(
-            question
+            question,
+            health_problem_id
         )
 
     except Exception as error:
@@ -498,7 +510,8 @@ async def chat(
 )
 async def chatbot_submit(
     request: Request,
-    question: str = Form("")
+    question: str = Form(""),
+    health_problem_id: str | None = Form(None)
 ):
     """
     Process the chatbot web form and render the response.
@@ -509,7 +522,9 @@ async def chatbot_submit(
             request=request,
             name="chatbot.html",
             context={
-                "response": "Please enter a question."
+                "response": "Please enter a question.",
+                "health_problem_id": health_problem_id,
+                "diagnosis_profile": None
             },
             status_code=400
         )
@@ -521,7 +536,8 @@ async def chatbot_submit(
         )
 
         response = chatbot_response(
-            question
+            question,
+            health_problem_id
         )
 
     except Exception as error:
@@ -535,7 +551,9 @@ async def chatbot_submit(
         request=request,
         name="chatbot.html",
         context={
-            "response": response
+            "response": response,
+            "health_problem_id": health_problem_id,
+            "diagnosis_profile": None
         }
     )
 
