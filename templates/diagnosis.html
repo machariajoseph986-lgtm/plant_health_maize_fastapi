@@ -291,8 +291,151 @@
 
 
         <!-- ====================================================
-             UNCERTAIN RESULT NOTICE
+             POST-DIAGNOSIS ASSISTANCE
              ==================================================== -->
+
+        {% if result.confidence_status == "accepted" and result.health_problem_id and not result.is_healthy and result.disease_profile %}
+
+        <div class="diagnosis-assistance">
+
+            <h2>What does this mean?</h2>
+
+            <p>
+                {{ result.disease_profile.description }}
+            </p>
+
+            {% if result.disease_profile.symptoms %}
+
+            <div class="assistance-section">
+
+                <h3>Symptoms to look for</h3>
+
+                <ul>
+                    {% for symptom in result.disease_profile.symptoms %}
+                    <li>
+                        {% if symptom.category %}
+                        <strong>{{ symptom.category|replace("_", " ")|title }}:</strong>
+                        {% endif %}
+                        {{ symptom.description }}
+                    </li>
+                    {% endfor %}
+                </ul>
+
+            </div>
+
+            {% endif %}
+
+            {% if result.disease_profile.management %}
+
+            <div class="assistance-section">
+
+                <h3>What should I do?</h3>
+
+                <ul>
+                    {% for item in result.disease_profile.management %}
+                    <li>
+                        {% if item.category %}
+                        <strong>{{ item.category|replace("_", " ")|title }}:</strong>
+                        {% endif %}
+                        {{ item.action }}
+                    </li>
+                    {% endfor %}
+                </ul>
+
+            </div>
+
+            {% endif %}
+
+            {% if result.disease_profile.chemical_management %}
+
+            <div class="assistance-section">
+
+                <h3>Treatment options</h3>
+
+                <p>
+                    The knowledge base contains the following chemical-management
+                    options. Exact products, formulations, application rates, and
+                    legal use depend on locally registered products and their labels.
+                    Always follow the product label and required safety precautions.
+                </p>
+
+                <ul>
+                    {% for chemical in result.disease_profile.chemical_management %}
+                    <li>
+                        <strong>{{ chemical.active_ingredient or "No specific active ingredient listed" }}</strong>
+                        {% if chemical.chemical_class %}
+                        ({{ chemical.chemical_class }})
+                        {% endif %}
+                        {% if chemical.application_timing %}
+                        - <strong>Timing:</strong> {{ chemical.application_timing }}
+                        {% endif %}
+                        {% if chemical.application_guidance %}
+                        <br><strong>Guidance:</strong> {{ chemical.application_guidance }}
+                        {% endif %}
+                        {% if chemical.safety_notes %}
+                        <br><strong>Safety:</strong> {{ chemical.safety_notes }}
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+
+            </div>
+
+            {% endif %}
+
+            {% if result.disease_profile.conditions %}
+
+            <div class="assistance-section">
+
+                <h3>Conditions that can favour the disease</h3>
+
+                <ul>
+                    {% for condition in result.disease_profile.conditions %}
+                    <li>
+                        {% if condition.factor %}
+                        <strong>{{ condition.factor|replace("_", " ")|title }}:</strong>
+                        {% endif %}
+                        {{ condition.description or condition.value }}
+                    </li>
+                    {% endfor %}
+                </ul>
+
+            </div>
+
+            {% endif %}
+
+        </div>
+
+        {% endif %}
+
+
+        <!-- ====================================================
+             FOLLOW-UP ACTION
+             ==================================================== -->
+
+        {% if result.health_problem_id and not result.is_healthy %}
+
+        <div class="diagnosis-actions">
+
+            <h2>What would you like to do next?</h2>
+
+            <p>
+                Ask follow-up questions about this diagnosis,
+                including management, prevention, symptoms,
+                or chemical treatment options.
+            </p>
+
+            <a
+                href="/chatbot?health_problem_id={{ result.health_problem_id }}"
+                class="primary-button"
+            >
+                Ask about this diagnosis
+            </a>
+
+        </div>
+
+        {% endif %}
+
 
         {% if result.confidence_status == "uncertain" %}
 
