@@ -25,6 +25,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development").lower()
+
+if ENVIRONMENT not in {"development", "production"}:
+    raise RuntimeError(
+        "ENVIRONMENT must be either 'development' or 'production'."
+    )
+
 # Disable TensorFlow XLA JIT for deployment stability.
 os.environ["TF_XLA_FLAGS"] = "--tf_xla_auto_jit=0"
 
@@ -36,7 +43,10 @@ class ChatRequest(BaseModel):
 app = FastAPI(
     title="Plant Health Maize API",
     description="API for the Plant Health Maize Project.",
-    version="1.0.0"
+    version="1.0.0",
+    docs_url="/docs" if ENVIRONMENT == "development" else None,
+    redoc_url="/redoc" if ENVIRONMENT == "development" else None,
+    openapi_url="/openapi.json" if ENVIRONMENT == "development" else None,
 )
 
 
@@ -59,12 +69,27 @@ templates = Jinja2Templates(
 # CORS
 # ============================================================
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[
+if ENVIRONMENT == "production":
+    cors_origins = [
+        origin.strip()
+        for origin in os.getenv("CORS_ORIGINS", "").split(",")
+        if origin.strip()
+    ]
+
+    if not cors_origins:
+        raise RuntimeError(
+            "CORS_ORIGINS must be set when ENVIRONMENT=production."
+        )
+else:
+    cors_origins = [
         "http://127.0.0.1:8000",
         "http://localhost:8000",
-    ],
+    ]
+
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -865,31 +890,34 @@ async def chatbot_submit(
     )
 
 
+
 # ============================================================
 # DATABASE TEST
 # ============================================================
 
-@app.get("/db-test")
-def db_test():
-    """
-    Test the PostgreSQL knowledge-base connection independently
-    from the CNN and diagnosis pipeline.
-    """
+if ENVIRONMENT == "development":
 
-    from knowledge_base.database_postgresql import (
-        get_disease_profile
-    )
+    @app.get("/db-test")
+    def db_test():
+        """
+        Test the PostgreSQL knowledge-base connection independently
+        from the CNN and diagnosis pipeline.
+        """
 
-    profile = get_disease_profile(
-        "HP_MAIZE_BLIGHT"
-    )
+        from knowledge_base.database_postgresql import (
+            get_disease_profile
+        )
 
-    return {
-        "status": "ok",
-        "database": "postgresql",
-        "profile_found": profile is not None,
-        "health_problem_id":
-            profile.get("health_problem_id")
-            if profile
-            else None
-    }
+        profile = get_disease_profile(
+            "HP_MAIZE_BLIGHT"
+        )
+
+        return {
+            "status": "ok",
+            "database": "postgresql",
+            "profile_found": profile is not None,
+            "health_problem_id":
+                profile.get("health_problem_id")
+                if profile
+                else None
+        }
