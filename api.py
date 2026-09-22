@@ -775,12 +775,13 @@ async def chat(
             None
         )
 
-    except Exception as error:
+    except Exception:
 
         raise HTTPException(
             status_code=500,
             detail=(
-                f"Chatbot request failed: {str(error)}"
+                "Chatbot request failed. "
+                "Please try again later."
             )
         )
 
@@ -832,12 +833,13 @@ async def chatbot_submit(
             health_problem_id
         )
 
-    except Exception as error:
+    except Exception:
 
         raise HTTPException(
             status_code=500,
             detail=(
-                f"Chatbot request failed: {str(error)}"
+                "Chatbot request failed. "
+                "Please try again later."
             )
         )
 
