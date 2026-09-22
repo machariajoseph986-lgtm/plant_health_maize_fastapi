@@ -352,7 +352,8 @@
                     const objectUrl =
                         URL.createObjectURL(file);
 
-                    image.src = objectUrl;
+                    image.src =
+                        objectUrl;
 
 
                     image.onload = () => {
@@ -390,6 +391,7 @@
 
                     removeButton.textContent =
                         "Remove";
+
 
                     removeButton.addEventListener(
                         "click",
@@ -522,6 +524,12 @@
 
                     addFiles(imageInput.files);
 
+                    /*
+                     * Reset the input value so the same file can
+                     * be selected again after being removed.
+                     */
+                    imageInput.value = "";
+
                 }
             );
 
@@ -567,7 +575,8 @@
                         cameraPreview.srcObject =
                             cameraStream;
 
-                        cameraPanel.hidden = false;
+                        cameraPanel.hidden =
+                            false;
 
                     }
 
@@ -769,16 +778,6 @@
 
             {% endif %}
 
-
-            {% if result.excluded_images %}
-
-            <p>
-                <strong>Images excluded:</strong>
-                {{ result.excluded_images }}
-            </p>
-
-            {% endif %}
-
         </div>
 
 
@@ -894,6 +893,10 @@
                 {% endif %}
 
 
+                <!-- ====================================================
+                     CONTRIBUTING IMAGES
+                     ==================================================== -->
+
                 {% if finding.image_paths %}
 
                 <div class="finding-images">
@@ -905,7 +908,7 @@
                         {% for image_path in finding.image_paths %}
 
                         <img
-                            src="/static/{{ image_path.replace('\\', '/').replace('static/', '', 1) }}"
+                            src="{{ image_path }}"
                             alt="Image contributing to diagnosis finding"
                         >
 
@@ -925,9 +928,13 @@
                     <h3>Important Caution</h3>
 
                     <ul>
+
                         {% for reason in finding.caution_reasons %}
+
                         <li>{{ reason }}</li>
+
                         {% endfor %}
+
                     </ul>
 
                 </div>
@@ -1215,7 +1222,7 @@
                 {% if excluded.image_path %}
 
                 <img
-                    src="/static/{{ excluded.image_path.replace('\\', '/').replace('static/', '', 1) }}"
+                    src="{{ excluded.image_path }}"
                     alt="Excluded uploaded image"
                 >
 
@@ -1228,6 +1235,7 @@
                         Image {{ loop.index }}
                     </strong>
 
+
                     {% if excluded.maize_probability is not none %}
 
                     <p>
@@ -1236,6 +1244,7 @@
                     </p>
 
                     {% endif %}
+
 
                     <p>
                         {{ excluded.rejection_reason }}
