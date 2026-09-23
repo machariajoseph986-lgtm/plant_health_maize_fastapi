@@ -283,8 +283,8 @@ def predict_image(image_path):
 
     predictions = model.predict(
     image_array,
-    verbose=0
-    )
+    training=False,
+    ).numpy()
 
     print("DISEASE_MODEL_STEP_2: disease model prediction complete")
 
