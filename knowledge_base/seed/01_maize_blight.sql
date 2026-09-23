@@ -13,6 +13,27 @@ VALUES
     )
 ON CONFLICT (health_problem_id) DO NOTHING;
 
+INSERT INTO public.sources
+    (source_id, health_problem_id, organization, title, url, accessed_date)
+VALUES
+    (
+        'SRC_MAIZE_BLIGHT_01',
+        'HP_MAIZE_BLIGHT',
+        'University of Delaware Cooperative Extension',
+        'Northern Corn Leaf Blight',
+        'https://www.udel.edu/academics/colleges/canr/cooperative-extension/fact-sheets/northern-corn-leaf-blight/',
+        '2026-08-25'
+    ),
+    (
+        'SRC_MAIZE_BLIGHT_02',
+        'HP_MAIZE_BLIGHT',
+        'Cornell University',
+        'Northern Corn Leaf Blight',
+        'https://cals.cornell.edu/field-crops/corn/diseases-of-corn/northern-corn-leaf-blight',
+        '2026-08-25'
+    )
+ON CONFLICT (source_id) DO NOTHING;
+
 INSERT INTO public.symptoms
     (symptom_id, health_problem_id, category, description)
 VALUES
