@@ -634,7 +634,7 @@ async def diagnose_api(
 )
 async def diagnose_page(
     request: Request,
-    images: list[UploadFile] = File(default=[])
+    images: list[UploadFile] = File(...)
 ):
     """
     Process up to 5 diagnosis images and render the diagnosis page.
