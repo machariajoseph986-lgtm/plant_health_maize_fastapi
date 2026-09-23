@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import uuid
 import base64
 import mimetypes
@@ -121,6 +122,8 @@ ALLOWED_EXTENSIONS = {
 }
 
 MAX_IMAGE_BYTES = 10 * 1024 * 1024
+MAX_DIAGNOSIS_IMAGES = 5
+MAX_TOTAL_DIAGNOSIS_BYTES = 30 * 1024 * 1024
 
 ALLOWED_IMAGE_FORMATS = {
     "JPEG",
@@ -306,6 +309,24 @@ def validate_uploaded_image(
             detail=(
                 "Unsupported image format. "
                 "Use JPG, JPEG, PNG, or WEBP."
+            )
+        )
+
+    extension = Path(filename).suffix.lower().lstrip(".")
+
+    expected_format = {
+        "jpg": "JPEG",
+        "jpeg": "JPEG",
+        "png": "PNG",
+        "webp": "WEBP",
+    }[extension]
+
+    if image_format != expected_format:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "The file extension does not match "
+                "the actual image format."
             )
         )
 
@@ -558,6 +579,11 @@ async def diagnose_api(
 
         image_bytes = await image.read()
 
+        validate_uploaded_image(
+            image_bytes,
+            image.filename
+        )
+
         with open(
             image_path,
             "wb"
@@ -604,6 +630,9 @@ async def diagnose_api(
                 result.get("disease_profile")
         }
 
+    except HTTPException:
+        raise
+
     except Exception as error:
 
         raise HTTPException(
@@ -644,9 +673,6 @@ async def diagnose_page(
     as data URLs, then the temporary directory is deleted.
     """
 
-    MAX_IMAGES = 5
-    MAX_TOTAL_BYTES = 30 * 1024 * 1024
-
     if not images:
 
         raise HTTPException(
@@ -654,7 +680,7 @@ async def diagnose_page(
             detail="Please upload at least one image."
         )
 
-    if len(images) > MAX_IMAGES:
+    if len(images) > MAX_DIAGNOSIS_IMAGES:
 
         raise HTTPException(
             status_code=400,
@@ -696,7 +722,7 @@ async def diagnose_page(
 
             total_bytes += len(image_bytes)
 
-            if total_bytes > MAX_TOTAL_BYTES:
+            if total_bytes > MAX_TOTAL_DIAGNOSIS_BYTES:
 
                 raise HTTPException(
                     status_code=400,
