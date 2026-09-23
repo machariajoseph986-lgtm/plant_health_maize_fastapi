@@ -423,13 +423,27 @@ def detect_intent(user_input):
 
     # Management
     if any(word in text for word in [
-        "management",
-        "manage",
-        "control",
-        "prevent",
-        "prevention",
-        "treat",
-        "treatment"
+    "management",
+    "manage",
+    "control",
+    "prevent",
+    "prevention",
+    "treat",
+    "treatment",
+    "should i do",
+    "should we do",
+    "can i do",
+    "can we do",
+    "what can i do",
+    "what can we do",
+    "how do i manage",
+    "how can i manage",
+    "how do i control",
+    "how can i control",
+    "how do i treat",
+    "how can i treat",
+    "how do i prevent",
+    "how can i prevent"
     ]):
         return "management"
 
