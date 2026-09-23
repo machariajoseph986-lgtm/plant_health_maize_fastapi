@@ -112,15 +112,25 @@ maize_feature_extractor = tf.keras.Model(
 def check_maize_gate(image_array):
     """Check whether an image appears to contain maize."""
 
+    print("MAIZE_GATE_STEP_1: starting feature extraction")
+
     features = maize_feature_extractor.predict(
         image_array,
         verbose=0
+    )
+
+    print(
+        "MAIZE_GATE_STEP_2: feature extraction complete"
     )
 
     maize_probability = float(
         maize_gate_model.predict_proba(
             features
         )[0, 1]
+    )
+
+    print(
+        "MAIZE_GATE_STEP_3: gate prediction complete"
     )
 
     is_maize = (
