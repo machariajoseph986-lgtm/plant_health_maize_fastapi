@@ -10,3 +10,4 @@ numpy==2.4.6
 Jinja2==3.1.6
 
 joblib==1.5.3
+scikit-learn==1.9.0
