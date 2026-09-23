@@ -48,10 +48,18 @@ ON CONFLICT (symptom_id) DO NOTHING;
 INSERT INTO public.transmission
     (transmission_id, health_problem_id, method, description)
 VALUES
-    ('TRANS_MAIZE_BLIGHT_SPORES', 'HP_MAIZE_BLIGHT', 'airborne_spores',
-     'Fungal foliar pathogens may spread through airborne spores from infected plant material.'),
-    ('TRANS_MAIZE_BLIGHT_RESIDUE', 'HP_MAIZE_BLIGHT', 'infected_residue',
-     'Some maize blight pathogens can survive in infected crop residue and produce inoculum for subsequent crops.')
+    (
+        'TRANS_MAIZE_BLIGHT_01',
+        'HP_MAIZE_BLIGHT',
+        'airborne_spores',
+        'Fungal foliar pathogens may spread through airborne spores from infected plant material.'
+    ),
+    (
+        'TRANS_MAIZE_BLIGHT_02',
+        'HP_MAIZE_BLIGHT',
+        'infected_residue',
+        'Some maize blight pathogens can survive in infected crop residue and produce inoculum for subsequent crops.'
+    )
 ON CONFLICT (transmission_id) DO NOTHING;
 
 INSERT INTO public.conditions
@@ -131,19 +139,19 @@ INSERT INTO public.sources
     (source_id, health_problem_id, organization, title, url, accessed_date)
 VALUES
     (
-        'SRC_MAIZE_BLIGHT_UDEL',
+        'SRC_MAIZE_BLIGHT_01',
         'HP_MAIZE_BLIGHT',
         'University of Delaware Cooperative Extension',
         'Northern Corn Leaf Blight',
         'https://www.udel.edu/academics/colleges/canr/cooperative-extension/fact-sheets/northern-corn-leaf-blight/',
-        NULL
+        '2026-08-25'
     ),
     (
-        'SRC_MAIZE_BLIGHT_CORNELL',
+        'SRC_MAIZE_BLIGHT_02',
         'HP_MAIZE_BLIGHT',
         'Cornell University',
         'Northern Corn Leaf Blight',
         'https://cals.cornell.edu/field-crops/corn/diseases-of-corn/northern-corn-leaf-blight',
-        NULL
+        '2026-08-25'
     )
 ON CONFLICT (source_id) DO NOTHING;
