@@ -14,11 +14,11 @@ CNN classes:
 
 import os
 import sys
+import resource
 
 import joblib
 import numpy as np
 import tensorflow as tf
-import resource
 
 try:
     from .mapping import (
@@ -113,7 +113,10 @@ maize_feature_extractor = tf.keras.Model(
 def check_maize_gate(image_array):
     """Check whether an image appears to contain maize."""
 
-    print("MAIZE_GATE_STEP_1: starting feature extraction")
+    print(
+        "MAIZE_GATE_STEP_1: "
+        "starting feature extraction"
+    )
 
     features = maize_feature_extractor.predict(
         image_array,
@@ -121,7 +124,8 @@ def check_maize_gate(image_array):
     )
 
     print(
-        "MAIZE_GATE_STEP_2: feature extraction complete"
+        "MAIZE_GATE_STEP_2: "
+        "feature extraction complete"
     )
 
     maize_probability = float(
@@ -131,7 +135,8 @@ def check_maize_gate(image_array):
     )
 
     print(
-        "MAIZE_GATE_STEP_3: gate prediction complete"
+        "MAIZE_GATE_STEP_3: "
+        "gate prediction complete"
     )
 
     is_maize = (
@@ -280,131 +285,206 @@ def predict_image(image_path):
     # CNN PREDICTION
     # ========================================================
 
-    print("DISEASE_MODEL_STEP_1: starting disease model prediction")
-
-    predictions = model.predict(
-    image_array,
-    training=False,
-    ).numpy()
-    
-    memory_usage = resource.getrusage(
-    resource.RUSAGE_SELF
+    memory_usage_before = resource.getrusage(
+        resource.RUSAGE_SELF
     ).ru_maxrss
 
     print(
-    f"DISEASE_MODEL_MEMORY_BEFORE: "
-    f"{memory_usage} KB"
-    )
-    
-    
-    print("DISEASE_MODEL_STEP_2: disease model prediction complete")
-
-    print("DISEASE_MODEL_STEP_3: processing prediction result")
-
-    probabilities = predictions[0]
-
-    # ========================================================
-    # GET PREDICTED CLASS
-    # ========================================================
-
-    class_index = int(
-        np.argmax(probabilities)
+        "DISEASE_MODEL_MEMORY_BEFORE: "
+        f"{memory_usage_before} KB"
     )
 
-    confidence = float(
-        probabilities[class_index]
+    print(
+        "DISEASE_MODEL_STEP_1: "
+        "starting disease model prediction"
+    )
+
+    predictions = model(
+        image_array,
+        training=False
+    ).numpy()
+
+    print(
+        "DISEASE_MODEL_STEP_2: "
+        "disease model prediction complete"
+    )
+
+    print(
+        "DISEASE_MODEL_STEP_3: "
+        "processing prediction result"
     )
 
     # ========================================================
-    # MAP CNN CLASS TO KNOWLEDGE BASE
+    # TRACE PREDICTION RESULT
     # ========================================================
 
-    mapping = get_prediction_mapping(
-        class_index
-    )
+    try:
 
-    class_name = mapping["class_name"]
-
-    # ========================================================
-    # CONFIDENCE DECISION
-    # ========================================================
-
-    if confidence >= CONFIDENCE_THRESHOLD:
-
-        confidence_status = "accepted"
-
-    else:
-
-        confidence_status = "uncertain"
-
-    # ========================================================
-    # BLIGHT ↔ GRAY LEAF SPOT CAUTION
-    # ========================================================
-
-    caution_required = (
-        class_name in BLIGHT_GRAY_PAIR
-    )
-
-    if caution_required:
-
-        caution_reason = (
-            "Blight and Gray Leaf Spot remain a known "
-            "high-confusion disease pair in the evaluated "
-            "model results."
+        print(
+            "PREDICTION_RESULT_STEP_1: "
+            "extracting probability array"
         )
 
-    else:
+        probabilities = predictions[0]
 
-        caution_reason = None
+        print(
+            "PREDICTION_RESULT_STEP_2: "
+            f"probability array extracted; "
+            f"shape={np.shape(probabilities)}"
+        )
 
-    # ========================================================
-    # BUILD RESULT
-    # ========================================================
+        # ====================================================
+        # GET PREDICTED CLASS
+        # ====================================================
 
-    result = {
+        print(
+            "PREDICTION_RESULT_STEP_3: "
+            "calculating predicted class"
+        )
 
-        "image_path": image_path,
+        class_index = int(
+            np.argmax(probabilities)
+        )
 
-        "is_maize": True,
+        confidence = float(
+            probabilities[class_index]
+        )
 
-        "maize_probability":
-            gate_result["maize_probability"],
+        print(
+            "PREDICTION_RESULT_STEP_4: "
+            f"class_index={class_index}, "
+            f"confidence={confidence}"
+        )
 
-        "maize_gate_threshold":
-            gate_result["maize_gate_threshold"],
+        # ====================================================
+        # MAP CNN CLASS TO KNOWLEDGE BASE
+        # ====================================================
 
-        "maize_gate_status":
-            "accepted",
+        print(
+            "PREDICTION_RESULT_STEP_5: "
+            "loading prediction mapping"
+        )
 
-        "class_index":
-            class_index,
+        mapping = get_prediction_mapping(
+            class_index
+        )
 
-        "class_name":
-            class_name,
+        print(
+            "PREDICTION_RESULT_STEP_6: "
+            f"mapping received: {mapping}"
+        )
 
-        "confidence":
-            confidence,
+        class_name = mapping["class_name"]
 
-        "confidence_threshold":
-            CONFIDENCE_THRESHOLD,
+        print(
+            "PREDICTION_RESULT_STEP_7: "
+            f"class_name={class_name}"
+        )
 
-        "confidence_status":
-            confidence_status,
+        # ====================================================
+        # CONFIDENCE DECISION
+        # ====================================================
 
-        "caution_required":
-            caution_required,
+        if confidence >= CONFIDENCE_THRESHOLD:
 
-        "caution_reason":
-            caution_reason,
+            confidence_status = "accepted"
 
-        "health_problem_id":
-            mapping["health_problem_id"],
+        else:
 
-        "is_healthy":
-            mapping["is_healthy"]
-    }
+            confidence_status = "uncertain"
 
-    return result
+        print(
+            "PREDICTION_RESULT_STEP_8: "
+            f"confidence_status={confidence_status}"
+        )
+
+        # ====================================================
+        # BLIGHT ↔ GRAY LEAF SPOT CAUTION
+        # ====================================================
+
+        caution_required = (
+            class_name in BLIGHT_GRAY_PAIR
+        )
+
+        if caution_required:
+
+            caution_reason = (
+                "Blight and Gray Leaf Spot remain a known "
+                "high-confusion disease pair in the evaluated "
+                "model results."
+            )
+
+        else:
+
+            caution_reason = None
+
+        print(
+            "PREDICTION_RESULT_STEP_9: "
+            f"caution_required={caution_required}"
+        )
+
+        # ====================================================
+        # BUILD RESULT
+        # ====================================================
+
+        result = {
+
+            "image_path": image_path,
+
+            "is_maize": True,
+
+            "maize_probability":
+                gate_result["maize_probability"],
+
+            "maize_gate_threshold":
+                gate_result["maize_gate_threshold"],
+
+            "maize_gate_status":
+                "accepted",
+
+            "class_index":
+                class_index,
+
+            "class_name":
+                class_name,
+
+            "confidence":
+                confidence,
+
+            "confidence_threshold":
+                CONFIDENCE_THRESHOLD,
+
+            "confidence_status":
+                confidence_status,
+
+            "caution_required":
+                caution_required,
+
+            "caution_reason":
+                caution_reason,
+
+            "health_problem_id":
+                mapping["health_problem_id"],
+
+            "is_healthy":
+                mapping["is_healthy"]
+        }
+
+        print(
+            "PREDICTION_RESULT_STEP_10: "
+            "result dictionary built successfully"
+        )
+
+        return result
+
+    except Exception as error:
+
+        print(
+            "PREDICTION_RESULT_ERROR: "
+            f"{type(error).__name__}: {error}"
+        )
+
+        raise
 
 
 # ============================================================
@@ -650,6 +730,8 @@ def predict_images(image_paths):
             )
     }
 
+
+# ============================================================
 # COMMAND-LINE TEST
 # ============================================================
 
@@ -721,4 +803,3 @@ if __name__ == "__main__":
         f"  Caution     : "
         f"{'YES' if result['caution_required'] else 'NO'}"
     )
-
