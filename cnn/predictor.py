@@ -80,11 +80,21 @@ if not os.path.exists(MAIZE_GATE_MODEL_PATH):
         f"Maize gate model not found:\n{MAIZE_GATE_MODEL_PATH}"
     )
 
-maize_gate_model = joblib.load(
-    MAIZE_GATE_MODEL_PATH
-)
+try:
+    maize_gate_model = joblib.load(
+        MAIZE_GATE_MODEL_PATH
+    )
 
-print("Maize gate model loaded successfully.")
+    print(
+        "Maize gate model loaded successfully."
+    )
+
+except Exception as error:
+    print(
+        f"MAIZE_GATE_LOAD_ERROR: "
+        f"{type(error).__name__}: {error}"
+    )
+    raise
 
 
 # ============================================================
