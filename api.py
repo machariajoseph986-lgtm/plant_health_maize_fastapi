@@ -634,13 +634,16 @@ async def diagnose_api(
         raise
 
     except Exception as error:
+        print(
+            f"DIAGNOSE_PAGE_ERROR: "
+            f"{type(error).__name__}: {error}"
+        )
 
         raise HTTPException(
             status_code=500,
             detail=(
                 "Diagnosis failed. One or more uploaded images "
-                "could not be read. Please upload valid JPG, "
-                "JPEG, PNG, or WEBP images."
+                "could not be processed. Please try again."
             )
         )
 
