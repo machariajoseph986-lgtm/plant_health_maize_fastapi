@@ -18,6 +18,7 @@ import sys
 import joblib
 import numpy as np
 import tensorflow as tf
+import resource
 
 try:
     from .mapping import (
@@ -285,7 +286,17 @@ def predict_image(image_path):
     image_array,
     training=False,
     ).numpy()
+    
+    memory_usage = resource.getrusage(
+    resource.RUSAGE_SELF
+    ).ru_maxrss
 
+    print(
+    f"DISEASE_MODEL_MEMORY_BEFORE: "
+    f"{memory_usage} KB"
+    )
+    
+    
     print("DISEASE_MODEL_STEP_2: disease model prediction complete")
 
     print("DISEASE_MODEL_STEP_3: processing prediction result")
