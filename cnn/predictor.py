@@ -279,10 +279,16 @@ def predict_image(image_path):
     # CNN PREDICTION
     # ========================================================
 
+    print("DISEASE_MODEL_STEP_1: starting disease model prediction")
+
     predictions = model.predict(
-        image_array,
-        verbose=0
+    image_array,
+    verbose=0
     )
+
+    print("DISEASE_MODEL_STEP_2: disease model prediction complete")
+
+    print("DISEASE_MODEL_STEP_3: processing prediction result")
 
     probabilities = predictions[0]
 
