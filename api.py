@@ -635,8 +635,8 @@ async def diagnose_api(
 
     except Exception as error:
         print(
-            f"DIAGNOSE_PAGE_ERROR: "
-            f"{type(error).__name__}: {error}"
+            "DIAGNOSE_PAGE_ERROR:",
+            repr(error)
         )
 
         raise HTTPException(
