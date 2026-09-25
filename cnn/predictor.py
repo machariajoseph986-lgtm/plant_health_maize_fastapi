@@ -14,7 +14,10 @@ CNN classes:
 
 import os
 import sys
-import resource
+try:
+    import resource
+except ImportError:
+    resource = None
 
 import joblib
 import numpy as np
@@ -118,10 +121,32 @@ def check_maize_gate(image_array):
         "starting feature extraction"
     )
 
+    if resource is not None:
+        before_memory = resource.getrusage(
+            resource.RUSAGE_SELF
+        ).ru_maxrss
+
+        print(
+            "MAIZE_GATE_MEMORY_BEFORE:",
+            before_memory,
+            "KB"
+        )
+
     features = maize_feature_extractor.predict(
         image_array,
         verbose=0
     )
+
+    if resource is not None:
+        after_memory = resource.getrusage(
+            resource.RUSAGE_SELF
+        ).ru_maxrss
+
+        print(
+            "MAIZE_GATE_MEMORY_AFTER:",
+            after_memory,
+            "KB"
+        )
 
     print(
         "MAIZE_GATE_STEP_2: "
@@ -285,14 +310,15 @@ def predict_image(image_path):
     # CNN PREDICTION
     # ========================================================
 
-    memory_usage_before = resource.getrusage(
-        resource.RUSAGE_SELF
-    ).ru_maxrss
+    if resource is not None:
+        memory_usage_before = resource.getrusage(
+            resource.RUSAGE_SELF
+        ).ru_maxrss
 
-    print(
-        "DISEASE_MODEL_MEMORY_BEFORE: "
-        f"{memory_usage_before} KB"
-    )
+        print(
+            "DISEASE_MODEL_MEMORY_BEFORE: "
+            f"{memory_usage_before} KB"
+        )
 
     print(
         "DISEASE_MODEL_STEP_1: "
