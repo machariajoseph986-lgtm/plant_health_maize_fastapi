@@ -1,19 +1,6 @@
-"""
-CNN Image Predictor
-
-Loads the trained V3 MobileNetV2 model, predicts the disease class
-for an image, and maps the prediction to the PostgreSQL knowledge base.
-
-CNN classes:
-
-    0 → Blight
-    1 → Common_Rust
-    2 → Gray_Leaf_Spot
-    3 → Healthy
-"""
-
 import os
 import sys
+
 try:
     import resource
 except ImportError:
@@ -34,18 +21,35 @@ except ImportError:
 
 
 # ============================================================
-# CONFIGURATION
+# PROJECT CONFIGURATION
 # ============================================================
 
 PROJECT_DIR = os.path.dirname(
     os.path.dirname(os.path.abspath(__file__))
 )
 
+
+# Keep the original Keras path for compatibility/reference.
+# The application now uses the TFLite model below.
 MODEL_PATH = os.path.join(
     PROJECT_DIR,
     "training_output",
     "v3",
     "best_maize_disease_mobilenetv2_v3_finetuned.keras"
+)
+
+DISEASE_MODEL_PATH = os.path.join(
+    PROJECT_DIR,
+    "training_output",
+    "v3",
+    "maize_disease.tflite"
+)
+
+FEATURE_EXTRACTOR_PATH = os.path.join(
+    PROJECT_DIR,
+    "training_output",
+    "v3",
+    "maize_feature_extractor.tflite"
 )
 
 IMAGE_SIZE = (320, 320)
@@ -60,31 +64,175 @@ MAIZE_GATE_THRESHOLD = 0.45
 
 
 # ============================================================
-# LOAD MODEL
+# MEMORY DIAGNOSTICS
 # ============================================================
 
-print("Loading V3 MobileNetV2 model...")
+def get_memory_mb():
+    """
+    Return the current process memory usage in MB.
 
-if not os.path.exists(MODEL_PATH):
-    raise FileNotFoundError(
-        f"V3 MobileNetV2 model not found:\n{MODEL_PATH}"
-    )
+    Linux:
+        resource.ru_maxrss is reported in KB.
 
-model = tf.keras.models.load_model(
-    MODEL_PATH,
-    compile=False
+    Other systems:
+        resource.ru_maxrss may be reported in bytes.
+    """
+
+    try:
+
+        if resource is None:
+            return None
+
+        memory = resource.getrusage(
+            resource.RUSAGE_SELF
+        ).ru_maxrss
+
+        if sys.platform.startswith("linux"):
+            return memory / 1024
+
+        return memory / (1024 * 1024)
+
+    except Exception:
+        return None
+
+
+def log_memory(label):
+    """
+    Print memory usage for deployment diagnostics.
+    """
+
+    memory_mb = get_memory_mb()
+
+    if memory_mb is not None:
+
+        print(
+            f"{label}: "
+            f"{memory_mb:.2f} MB"
+        )
+
+
+# ============================================================
+# LOAD TFLITE DISEASE MODEL
+# ============================================================
+
+print(
+    "Loading TFLite disease model..."
 )
 
-print("V3 MobileNetV2 model loaded successfully.")
+if not os.path.exists(
+    DISEASE_MODEL_PATH
+):
 
-print("Loading maize gate model...")
-
-if not os.path.exists(MAIZE_GATE_MODEL_PATH):
     raise FileNotFoundError(
-        f"Maize gate model not found:\n{MAIZE_GATE_MODEL_PATH}"
+        "TFLite disease model not found:\n"
+        f"{DISEASE_MODEL_PATH}"
     )
 
+
 try:
+
+    disease_interpreter = (
+        tf.lite.Interpreter(
+            model_path=DISEASE_MODEL_PATH
+        )
+    )
+
+    disease_interpreter.allocate_tensors()
+
+    disease_input_details = (
+        disease_interpreter.get_input_details()
+    )
+
+    disease_output_details = (
+        disease_interpreter.get_output_details()
+    )
+
+    print(
+        "TFLite disease model "
+        "loaded successfully."
+    )
+
+except Exception as error:
+
+    print(
+        "DISEASE_TFLITE_LOAD_ERROR: "
+        f"{type(error).__name__}: {error}"
+    )
+
+    raise
+
+
+# ============================================================
+# LOAD TFLITE MAIZE FEATURE EXTRACTOR
+# ============================================================
+
+print(
+    "Loading TFLite maize feature extractor..."
+)
+
+if not os.path.exists(
+    FEATURE_EXTRACTOR_PATH
+):
+
+    raise FileNotFoundError(
+        "TFLite feature extractor not found:\n"
+        f"{FEATURE_EXTRACTOR_PATH}"
+    )
+
+
+try:
+
+    maize_feature_interpreter = (
+        tf.lite.Interpreter(
+            model_path=FEATURE_EXTRACTOR_PATH
+        )
+    )
+
+    maize_feature_interpreter.allocate_tensors()
+
+    maize_feature_input_details = (
+        maize_feature_interpreter.get_input_details()
+    )
+
+    maize_feature_output_details = (
+        maize_feature_interpreter.get_output_details()
+    )
+
+    print(
+        "TFLite maize feature extractor "
+        "loaded successfully."
+    )
+
+except Exception as error:
+
+    print(
+        "FEATURE_TFLITE_LOAD_ERROR: "
+        f"{type(error).__name__}: {error}"
+    )
+
+    raise
+
+
+# ============================================================
+# LOAD MAIZE GATE MODEL
+# ============================================================
+
+print(
+    "Loading maize gate model..."
+)
+
+if not os.path.exists(
+    MAIZE_GATE_MODEL_PATH
+):
+
+    raise FileNotFoundError(
+        "Maize gate model not found:\n"
+        f"{MAIZE_GATE_MODEL_PATH}"
+    )
+
+
+try:
+
     maize_gate_model = joblib.load(
         MAIZE_GATE_MODEL_PATH
     )
@@ -94,107 +242,248 @@ try:
     )
 
 except Exception as error:
+
     print(
-        f"MAIZE_GATE_LOAD_ERROR: "
+        "MAIZE_GATE_LOAD_ERROR: "
         f"{type(error).__name__}: {error}"
     )
+
     raise
 
 
 # ============================================================
-# MAIZE GATE FEATURE EXTRACTOR
+# TFLITE FEATURE EXTRACTION
 # ============================================================
 
-maize_feature_extractor = tf.keras.Model(
-    inputs=model.input,
-    outputs=model.get_layer(
-        "global_average_pooling2d"
-    ).output
-)
+def extract_maize_features(
+    image_array
+):
+    """
+    Extract the 1,280 MobileNetV2 features
+    required by the maize gate model.
+    """
 
-
-def check_maize_gate(image_array):
-    """Check whether an image appears to contain maize."""
+    log_memory(
+        "FEATURE_TFLITE_MEMORY_BEFORE"
+    )
 
     print(
-        "MAIZE_GATE_STEP_1: "
+        "FEATURE_TFLITE_STEP_1: "
         "starting feature extraction"
     )
 
-    if resource is not None:
-        before_memory = resource.getrusage(
-            resource.RUSAGE_SELF
-        ).ru_maxrss
+    try:
 
-        print(
-            "MAIZE_GATE_MEMORY_BEFORE:",
-            before_memory,
-            "KB"
+        input_details = (
+            maize_feature_input_details[0]
         )
 
-    features = maize_feature_extractor.predict(
-        image_array,
-        verbose=0
-    )
-
-    if resource is not None:
-        after_memory = resource.getrusage(
-            resource.RUSAGE_SELF
-        ).ru_maxrss
-
-        print(
-            "MAIZE_GATE_MEMORY_AFTER:",
-            after_memory,
-            "KB"
+        output_details = (
+            maize_feature_output_details[0]
         )
 
-    print(
-        "MAIZE_GATE_STEP_2: "
-        "feature extraction complete"
-    )
+        input_index = (
+            input_details["index"]
+        )
 
-    maize_probability = float(
-        maize_gate_model.predict_proba(
-            features
-        )[0, 1]
-    )
+        output_index = (
+            output_details["index"]
+        )
 
-    print(
-        "MAIZE_GATE_STEP_3: "
-        "gate prediction complete"
-    )
+        # Make sure the input is float32,
+        # matching the original Keras pipeline.
+        input_data = np.asarray(
+            image_array,
+            dtype=np.float32
+        )
 
-    is_maize = (
-        maize_probability >= MAIZE_GATE_THRESHOLD
-    )
+        maize_feature_interpreter.set_tensor(
+            input_index,
+            input_data
+        )
 
-    return {
-        "is_maize": is_maize,
-        "maize_probability": maize_probability,
-        "maize_gate_threshold": MAIZE_GATE_THRESHOLD
-    }
+        maize_feature_interpreter.invoke()
+
+        features = (
+            maize_feature_interpreter.get_tensor(
+                output_index
+            )
+        )
+
+        print(
+            "FEATURE_TFLITE_STEP_2: "
+            "feature extraction complete"
+        )
+
+        log_memory(
+            "FEATURE_TFLITE_MEMORY_AFTER"
+        )
+
+        return features
+
+    except Exception as error:
+
+        print(
+            "FEATURE_TFLITE_INFERENCE_ERROR: "
+            f"{type(error).__name__}: {error}"
+        )
+
+        raise
 
 
 # ============================================================
-# PREDICT IMAGE
+# MAIZE GATE CHECK
 # ============================================================
 
-def predict_image(image_path):
+def check_maize_gate(
+    image_array
+):
     """
-    Predict the maize disease class for one image.
+    Determine whether the uploaded image
+    is likely to be a maize image.
 
-    Diagnostic policy:
-
-        - Global confidence threshold: 70%
-        - Blight ↔ Gray Leaf Spot: caution pair
-
-    Returns a dictionary containing maize-gate fields and,
-    when accepted by the gate, disease classification fields.
+    The LogisticRegression gate expects
+    1,280 MobileNetV2 features.
     """
 
-    # ========================================================
-    # DIAGNOSTIC POLICY
-    # ========================================================
+    try:
+
+        features = extract_maize_features(
+            image_array
+        )
+
+        print(
+            "MAIZE_GATE_STEP_2: "
+            "feature extraction complete"
+        )
+
+        gate_probability = (
+            maize_gate_model.predict_proba(
+                features
+            )[0][1]
+        )
+
+        print(
+            "MAIZE_GATE_STEP_3: "
+            "gate prediction complete"
+        )
+
+        log_memory(
+            "MAIZE_GATE_MEMORY_AFTER"
+        )
+
+        gate_probability = float(
+            gate_probability
+        )
+
+        gate_decision = (
+            gate_probability
+            >= MAIZE_GATE_THRESHOLD
+        )
+
+        return (
+            gate_decision,
+            gate_probability
+        )
+
+    except Exception as error:
+
+        print(
+            "MAIZE_GATE_ERROR: "
+            f"{type(error).__name__}: {error}"
+        )
+
+        raise
+
+
+# ============================================================
+# TFLITE DISEASE PREDICTION
+# ============================================================
+
+def predict_disease(
+    image_array
+):
+    """
+    Run disease classification using
+    the TFLite disease model.
+    """
+
+    log_memory(
+        "DISEASE_MODEL_MEMORY_BEFORE"
+    )
+
+    print(
+        "DISEASE_MODEL_STEP_1: "
+        "starting disease model prediction"
+    )
+
+    try:
+
+        input_details = (
+            disease_input_details[0]
+        )
+
+        output_details = (
+            disease_output_details[0]
+        )
+
+        input_index = (
+            input_details["index"]
+        )
+
+        output_index = (
+            output_details["index"]
+        )
+
+        input_data = np.asarray(
+            image_array,
+            dtype=np.float32
+        )
+
+        disease_interpreter.set_tensor(
+            input_index,
+            input_data
+        )
+
+        disease_interpreter.invoke()
+
+        predictions = (
+            disease_interpreter.get_tensor(
+                output_index
+            )
+        )
+
+        print(
+            "DISEASE_MODEL_STEP_2: "
+            "disease model prediction complete"
+        )
+
+        log_memory(
+            "DISEASE_MODEL_MEMORY_AFTER"
+        )
+
+        return predictions
+
+    except Exception as error:
+
+        print(
+            "DISEASE_TFLITE_INFERENCE_ERROR: "
+            f"{type(error).__name__}: {error}"
+        )
+
+        raise
+
+
+# ============================================================
+# SINGLE IMAGE PREDICTION
+# ============================================================
+
+def predict_image(
+    image_path
+):
+    """
+    Predict the disease in one image.
+    """
 
     CONFIDENCE_THRESHOLD = 0.70
 
@@ -203,213 +492,260 @@ def predict_image(image_path):
         "Gray_Leaf_Spot"
     }
 
-    # ========================================================
-    # CHECK IMAGE
-    # ========================================================
-
-    if not os.path.exists(image_path):
-
-        raise FileNotFoundError(
-            f"Image not found:\n{image_path}"
-        )
-
-    # ========================================================
-    # LOAD IMAGE
-    # ========================================================
-
-    image = tf.io.read_file(
-        image_path
-    )
-
-    image = tf.image.decode_image(
-        image,
-        channels=3,
-        expand_animations=False,
-    )
-
-    image = tf.image.resize(
-        image,
-        IMAGE_SIZE
-    )
-
-    image = tf.cast(
-        image,
-        tf.float32
-    )
-
-    image_array = (
-        tf.keras.applications.mobilenet_v2.preprocess_input(
-            image
-        )
-    )
-
-    image_array = np.expand_dims(
-        image_array,
-        axis=0
-    )
-
-    # ========================================================
-    # MAIZE GATE
-    #
-    # Reject images that do not appear to contain maize
-    # before running the disease classifier.
-    # ========================================================
-
-    gate_result = check_maize_gate(
-        image_array
-    )
-
-    if not gate_result["is_maize"]:
-
-        return {
-            "image_path": image_path,
-
-            "is_maize": False,
-
-            "maize_probability":
-                gate_result["maize_probability"],
-
-            "maize_gate_threshold":
-                gate_result["maize_gate_threshold"],
-
-            "maize_gate_status":
-                "rejected",
-
-            "class_index": None,
-
-            "class_name": None,
-
-            "confidence": None,
-
-            "confidence_threshold":
-                CONFIDENCE_THRESHOLD,
-
-            "confidence_status":
-                "not_run",
-
-            "caution_required":
-                False,
-
-            "caution_reason":
-                None,
-
-            "health_problem_id":
-                None,
-
-            "is_healthy":
-                None,
-
-            "rejection_reason": (
-                "The uploaded image does not appear "
-                "to contain maize. Please upload a "
-                "clear image of a maize plant or leaf."
-            )
-        }
-
-    # ========================================================
-    # CNN PREDICTION
-    # ========================================================
-
-    if resource is not None:
-        memory_usage_before = resource.getrusage(
-            resource.RUSAGE_SELF
-        ).ru_maxrss
-
-        print(
-            "DISEASE_MODEL_MEMORY_BEFORE: "
-            f"{memory_usage_before} KB"
-        )
-
-    print(
-        "DISEASE_MODEL_STEP_1: "
-        "starting disease model prediction"
-    )
-
-    predictions = model(
-        image_array,
-        training=False
-    ).numpy()
-
-    print(
-        "DISEASE_MODEL_STEP_2: "
-        "disease model prediction complete"
-    )
-
-    print(
-        "DISEASE_MODEL_STEP_3: "
-        "processing prediction result"
-    )
-
-    # ========================================================
-    # TRACE PREDICTION RESULT
-    # ========================================================
-
     try:
 
+        # ----------------------------------------------------
+        # Validate image path
+        # ----------------------------------------------------
+
+        if not os.path.exists(
+            image_path
+        ):
+
+            raise FileNotFoundError(
+                f"Image not found:\n{image_path}"
+            )
+
         print(
-            "PREDICTION_RESULT_STEP_1: "
-            "extracting probability array"
+            f"Processing image: {image_path}"
         )
+
+        log_memory(
+            "IMAGE_MEMORY_START"
+        )
+
+        # ----------------------------------------------------
+        # Read image
+        # ----------------------------------------------------
+
+        image_bytes = tf.io.read_file(
+            image_path
+        )
+
+        print(
+            "IMAGE_STEP_1: image file read"
+        )
+
+        # ----------------------------------------------------
+        # Decode image
+        # ----------------------------------------------------
+
+        image = tf.image.decode_image(
+            image_bytes,
+            channels=3,
+            expand_animations=False
+        )
+
+        print(
+            "IMAGE_STEP_2: image decoded"
+        )
+
+        # ----------------------------------------------------
+        # Resize image
+        # ----------------------------------------------------
+
+        image = tf.image.resize(
+            image,
+            IMAGE_SIZE
+        )
+
+        print(
+            "IMAGE_STEP_3: image resized"
+        )
+
+        # ----------------------------------------------------
+        # Convert to float32
+        # ----------------------------------------------------
+
+        image = tf.cast(
+            image,
+            tf.float32
+        )
+
+        # ----------------------------------------------------
+        # MobileNetV2 preprocessing
+        #
+        # This converts pixel values from
+        # [0, 255] to approximately [-1, 1].
+        # ----------------------------------------------------
+
+        image = (
+            tf.keras.applications
+            .mobilenet_v2
+            .preprocess_input(
+                image
+            )
+        )
+
+        # ----------------------------------------------------
+        # Add batch dimension
+        # ----------------------------------------------------
+
+        image_array = tf.expand_dims(
+            image,
+            axis=0
+        )
+
+        image_array = image_array.numpy()
+
+        print(
+            "IMAGE_STEP_4: image preprocessing complete"
+        )
+
+        print(
+            "IMAGE_INPUT_SHAPE:",
+            image_array.shape
+        )
+
+        print(
+            "IMAGE_INPUT_DTYPE:",
+            image_array.dtype
+        )
+
+        print(
+            "IMAGE_INPUT_MIN:",
+            float(np.min(image_array))
+        )
+
+        print(
+            "IMAGE_INPUT_MAX:",
+            float(np.max(image_array))
+        )
+
+        log_memory(
+            "IMAGE_MEMORY_AFTER_PREPROCESS"
+        )
+
+        # ----------------------------------------------------
+        # MAIZE GATE
+        # ----------------------------------------------------
+
+        print(
+            "MAIZE_GATE_STEP_1: "
+            "starting maize gate"
+        )
+
+        (
+            maize_gate_accepted,
+            maize_gate_probability
+        ) = check_maize_gate(
+            image_array
+        )
+
+        # ----------------------------------------------------
+        # Reject non-maize images
+        # ----------------------------------------------------
+
+        if not maize_gate_accepted:
+
+            print(
+                "MAIZE_GATE_DECISION: "
+                "REJECTED"
+            )
+
+            print(
+                "MAIZE_GATE_PROBABILITY:",
+                maize_gate_probability
+            )
+
+            return {
+
+                "image_path": image_path,
+
+                "maize_gate_status": "rejected",
+
+                "maize_gate_probability":
+                    maize_gate_probability,
+
+                "maize_gate_threshold":
+                    MAIZE_GATE_THRESHOLD,
+
+                "disease_status": None,
+
+                "class_index": None,
+
+                "class_name": None,
+
+                "confidence": None,
+
+                "confidence_status": None,
+
+                "prediction": None,
+
+                "health_problem_id": None,
+
+                "pathogen": None,
+
+                "symptoms": None,
+
+                "management": None,
+
+                "chemical_management": None,
+
+                "caution": None,
+
+                "caution_reason": None,
+
+                "rejection_reason":
+                    "The uploaded image does not "
+                    "appear to contain maize. "
+                    "Please upload a clear image "
+                    "of a maize plant or maize leaf."
+
+            }
+
+        # ----------------------------------------------------
+        # ACCEPTED BY MAIZE GATE
+        # ----------------------------------------------------
+
+        print(
+            "MAIZE_GATE_DECISION: ACCEPTED"
+        )
+
+        print(
+            "MAIZE_GATE_PROBABILITY:",
+            maize_gate_probability
+        )
+
+        # ----------------------------------------------------
+        # DISEASE MODEL
+        # ----------------------------------------------------
+
+        predictions = predict_disease(
+            image_array
+        )
+
+        # ----------------------------------------------------
+        # Extract probabilities
+        # ----------------------------------------------------
 
         probabilities = predictions[0]
 
-        print(
-            "PREDICTION_RESULT_STEP_2: "
-            f"probability array extracted; "
-            f"shape={np.shape(probabilities)}"
-        )
-
-        # ====================================================
-        # GET PREDICTED CLASS
-        # ====================================================
-
-        print(
-            "PREDICTION_RESULT_STEP_3: "
-            "calculating predicted class"
-        )
-
         class_index = int(
-            np.argmax(probabilities)
+            np.argmax(
+                probabilities
+            )
         )
 
         confidence = float(
             probabilities[class_index]
         )
 
-        print(
-            "PREDICTION_RESULT_STEP_4: "
-            f"class_index={class_index}, "
-            f"confidence={confidence}"
-        )
-
-        # ====================================================
-        # MAP CNN CLASS TO KNOWLEDGE BASE
-        # ====================================================
-
-        print(
-            "PREDICTION_RESULT_STEP_5: "
-            "loading prediction mapping"
-        )
+        # ----------------------------------------------------
+        # Map prediction to application
+        # ----------------------------------------------------
 
         mapping = get_prediction_mapping(
             class_index
         )
 
-        print(
-            "PREDICTION_RESULT_STEP_6: "
-            f"mapping received: {mapping}"
-        )
+        class_name = mapping[
+            "class_name"
+        ]
 
-        class_name = mapping["class_name"]
-
-        print(
-            "PREDICTION_RESULT_STEP_7: "
-            f"class_name={class_name}"
-        )
-
-        # ====================================================
-        # CONFIDENCE DECISION
-        # ====================================================
+        # ----------------------------------------------------
+        # Confidence status
+        # ----------------------------------------------------
 
         if confidence >= CONFIDENCE_THRESHOLD:
 
@@ -419,54 +755,58 @@ def predict_image(image_path):
 
             confidence_status = "uncertain"
 
-        print(
-            "PREDICTION_RESULT_STEP_8: "
-            f"confidence_status={confidence_status}"
+        # ----------------------------------------------------
+        # Disease status
+        # ----------------------------------------------------
+
+        disease_status = (
+            "accepted"
+            if confidence >= CONFIDENCE_THRESHOLD
+            else "uncertain"
         )
 
-        # ====================================================
-        # BLIGHT ↔ GRAY LEAF SPOT CAUTION
-        # ====================================================
+        # ----------------------------------------------------
+        # Caution handling
+        # ----------------------------------------------------
 
-        caution_required = (
-            class_name in BLIGHT_GRAY_PAIR
-        )
+        caution = None
+        caution_reason = None
 
-        if caution_required:
+        if class_name in BLIGHT_GRAY_PAIR:
+
+            caution = True
 
             caution_reason = (
-                "Blight and Gray Leaf Spot remain a known "
-                "high-confusion disease pair in the evaluated "
-                "model results."
+                "Blight and Gray Leaf Spot can "
+                "share similar visual symptoms. "
+                "Use the diagnosis together with "
+                "the visible symptoms and other "
+                "available information."
             )
 
         else:
 
-            caution_reason = None
+            caution = False
 
-        print(
-            "PREDICTION_RESULT_STEP_9: "
-            f"caution_required={caution_required}"
-        )
-
-        # ====================================================
-        # BUILD RESULT
-        # ====================================================
+        # ----------------------------------------------------
+        # Build result
+        # ----------------------------------------------------
 
         result = {
 
             "image_path": image_path,
 
-            "is_maize": True,
-
-            "maize_probability":
-                gate_result["maize_probability"],
-
-            "maize_gate_threshold":
-                gate_result["maize_gate_threshold"],
-
             "maize_gate_status":
                 "accepted",
+
+            "maize_gate_probability":
+                maize_gate_probability,
+
+            "maize_gate_threshold":
+                MAIZE_GATE_THRESHOLD,
+
+            "disease_status":
+                disease_status,
 
             "class_index":
                 class_index,
@@ -477,28 +817,74 @@ def predict_image(image_path):
             "confidence":
                 confidence,
 
-            "confidence_threshold":
-                CONFIDENCE_THRESHOLD,
-
             "confidence_status":
                 confidence_status,
 
-            "caution_required":
-                caution_required,
+            "prediction":
+                mapping,
+
+            "health_problem_id":
+                mapping.get(
+                    "health_problem_id"
+                ),
+
+            "pathogen":
+                mapping.get(
+                    "pathogen"
+                ),
+
+            "symptoms":
+                mapping.get(
+                    "symptoms"
+                ),
+
+            "management":
+                mapping.get(
+                    "management"
+                ),
+
+            "chemical_management":
+                mapping.get(
+                    "chemical_management"
+                ),
+
+            "caution":
+                caution,
 
             "caution_reason":
                 caution_reason,
 
-            "health_problem_id":
-                mapping["health_problem_id"],
+            "rejection_reason":
+                None
 
-            "is_healthy":
-                mapping["is_healthy"]
         }
 
+        # ----------------------------------------------------
+        # Logging
+        # ----------------------------------------------------
+
         print(
-            "PREDICTION_RESULT_STEP_10: "
-            "result dictionary built successfully"
+            "DISEASE_CLASS_INDEX:",
+            class_index
+        )
+
+        print(
+            "DISEASE_CLASS_NAME:",
+            class_name
+        )
+
+        print(
+            "DISEASE_CONFIDENCE:",
+            confidence
+        )
+
+        print(
+            "DISEASE_STATUS:",
+            disease_status
+        )
+
+        log_memory(
+            "PREDICTION_MEMORY_FINAL"
         )
 
         return result
@@ -506,7 +892,7 @@ def predict_image(image_path):
     except Exception as error:
 
         print(
-            "PREDICTION_RESULT_ERROR: "
+            "PREDICTION_ERROR: "
             f"{type(error).__name__}: {error}"
         )
 
@@ -514,49 +900,27 @@ def predict_image(image_path):
 
 
 # ============================================================
-# PREDICT MULTIPLE IMAGES
+# MULTIPLE IMAGE PREDICTION
 # ============================================================
 
-def predict_images(image_paths):
+def predict_images(
+    image_paths
+):
     """
-    Predict and aggregate multiple images as one diagnostic case.
+    Predict multiple images and aggregate
+    the contributing findings.
 
-    Each image is evaluated independently using the existing
-    single-image prediction pipeline.
-
-    A diagnostic case may contain multiple findings.
-
-    Returns:
-        A dictionary containing:
-
-            total_images
-                Total number of submitted images.
-
-            image_results
-                Individual prediction result for every image.
-
-            contributing_images
-                Images accepted by the maize gate.
-
-            excluded_images
-                Images rejected by the maize gate.
-
-            diagnostic_findings
-                Grouped diagnostic findings with confidence
-                and consistency information.
+    Existing application behavior is preserved:
+    - accepted maize images contribute
+    - rejected/non-maize images are excluded
+    - findings are grouped
     """
 
-    if not image_paths:
+    results = []
 
-        raise ValueError(
-            "At least one image is required for diagnosis."
-        )
+    contributing_results = []
 
-    image_results = []
-
-    # ========================================================
-    # PREDICT EACH IMAGE INDEPENDENTLY
-    # ========================================================
+    excluded_results = []
 
     for image_path in image_paths:
 
@@ -564,211 +928,153 @@ def predict_images(image_paths):
             image_path
         )
 
-        image_results.append(
+        results.append(
             result
         )
 
-    # ========================================================
-    # SEPARATE CONTRIBUTING AND EXCLUDED IMAGES
-    # ========================================================
+        if (
+            result.get(
+                "maize_gate_status"
+            )
+            == "accepted"
+        ):
 
-    contributing_results = [
-        result
-        for result in image_results
-        if result["is_maize"]
-    ]
+            contributing_results.append(
+                result
+            )
 
-    excluded_results = [
-        result
-        for result in image_results
-        if not result["is_maize"]
-    ]
+        else:
 
-    # ========================================================
-    # GROUP DIAGNOSTIC FINDINGS
-    # ========================================================
+            excluded_results.append(
+                result
+            )
 
-    diagnostic_findings = {}
+    # --------------------------------------------------------
+    # Group findings
+    # --------------------------------------------------------
+
+    findings = {}
 
     for result in contributing_results:
 
-        class_name = result["class_name"]
+        health_problem_id = result.get(
+            "health_problem_id"
+        )
 
-        if class_name not in diagnostic_findings:
+        class_name = result.get(
+            "class_name"
+        )
 
-            diagnostic_findings[class_name] = {
+        key = (
+            health_problem_id
+            or class_name
+        )
+
+        if key not in findings:
+
+            findings[key] = {
+                "health_problem_id":
+                    health_problem_id,
 
                 "class_name":
                     class_name,
 
-                "health_problem_id":
-                    result["health_problem_id"],
+                "images": [],
 
-                "is_healthy":
-                    result["is_healthy"],
+                "confidence_values": [],
 
-                "image_count":
-                    0,
-
-                "accepted_count":
-                    0,
-
-                "uncertain_count":
-                    0,
-
-                "image_paths":
-                    [],
-
-                "confidences":
-                    [],
-
-                "caution_required":
-                    False,
-
-                "caution_reasons":
-                    []
+                "highest_confidence":
+                    None
             }
 
-        finding = diagnostic_findings[
-            class_name
-        ]
-
-        finding["image_count"] += 1
-
-        finding["image_paths"].append(
-            result["image_path"]
+        findings[key][
+            "images"
+        ].append(
+            result.get(
+                "image_path"
+            )
         )
 
-        if result["confidence"] is not None:
+        confidence = result.get(
+            "confidence"
+        )
 
-            finding["confidences"].append(
-                result["confidence"]
+        if confidence is not None:
+
+            findings[key][
+                "confidence_values"
+            ].append(
+                confidence
             )
 
-        # ====================================================
-        # CONFIDENCE STATUS
-        # ====================================================
+    # --------------------------------------------------------
+    # Calculate highest confidence
+    # --------------------------------------------------------
 
-        if (
-            result["confidence_status"]
-            == "accepted"
-        ):
+    for finding in findings.values():
 
-            finding["accepted_count"] += 1
+        confidence_values = finding[
+            "confidence_values"
+        ]
 
-        elif (
-            result["confidence_status"]
-            == "uncertain"
-        ):
+        if confidence_values:
 
-            finding["uncertain_count"] += 1
-
-        # ====================================================
-        # CAUTION
-        # ====================================================
-
-        if result["caution_required"]:
-
-            finding["caution_required"] = True
-
-            if result["caution_reason"]:
-
-                if (
-                    result["caution_reason"]
-                    not in finding["caution_reasons"]
-                ):
-
-                    finding[
-                        "caution_reasons"
-                    ].append(
-                        result["caution_reason"]
-                    )
-
-    # ========================================================
-    # DETERMINE FINDING STATUS
-    # ========================================================
-
-    for finding in diagnostic_findings.values():
-
-        if (
-            finding["accepted_count"]
-            == finding["image_count"]
-        ):
-
-            finding["finding_status"] = (
-                "identified"
+            finding[
+                "highest_confidence"
+            ] = max(
+                confidence_values
             )
 
-        elif (
-            finding["accepted_count"] > 0
-        ):
-
-            finding["finding_status"] = (
-                "identified_with_uncertainty"
-            )
-
-        else:
-
-            finding["finding_status"] = (
-                "possible"
-            )
-
-        # ====================================================
-        # AVERAGE CONFIDENCE
-        # ====================================================
-
-        if finding["confidences"]:
-
-            finding["average_confidence"] = (
-                sum(
-                    finding["confidences"]
-                )
-                / len(
-                    finding["confidences"]
-                )
-            )
-
-        else:
-
-            finding["average_confidence"] = None
-
-    # ========================================================
-    # BUILD FINAL RESULT
-    # ========================================================
+    # --------------------------------------------------------
+    # Return aggregate result
+    # --------------------------------------------------------
 
     return {
 
-        "total_images":
-            len(image_results),
+        "results":
+            results,
 
-        "image_results":
-            image_results,
-
-        "contributing_images":
+        "contributing_results":
             contributing_results,
 
-        "excluded_images":
+        "excluded_results":
             excluded_results,
 
-        "diagnostic_findings":
+        "findings":
             list(
-                diagnostic_findings.values()
+                findings.values()
+            ),
+
+        "total_images":
+            len(image_paths),
+
+        "contributing_images":
+            len(
+                contributing_results
+            ),
+
+        "excluded_images":
+            len(
+                excluded_results
             )
+
     }
 
 
 # ============================================================
-# COMMAND-LINE TEST
+# COMMAND LINE INTERFACE
 # ============================================================
 
 if __name__ == "__main__":
 
-    if len(sys.argv) != 2:
-
-        print("\nUsage:")
+    if len(sys.argv) < 2:
 
         print(
-            "python cnn/predictor.py "
+            "Usage:"
+        )
+
+        print(
+            "python -m cnn.predictor "
             "<image_path>"
         )
 
@@ -776,56 +1082,14 @@ if __name__ == "__main__":
 
     image_path = sys.argv[1]
 
-    print(
-        "\n" + "=" * 60
-    )
-
-    print(
-        "V3 MOBILENETV2 IMAGE PREDICTION TEST"
-    )
-
-    print(
-        "=" * 60
-    )
-
     result = predict_image(
         image_path
     )
 
-    print("\nImage:")
-
     print(
-        f"  {result['image_path']}"
-    )
-
-    print("\nPrediction:")
-
-    print(
-        f"  Class index : "
-        f"{result['class_index']}"
+        "\nPrediction result:"
     )
 
     print(
-        f"  Class name  : "
-        f"{result['class_name']}"
-    )
-
-    print(
-        f"  Confidence  : "
-        f"{result['confidence'] * 100:.2f}%"
-    )
-
-    print(
-        f"  Threshold   : "
-        f"{result['confidence_threshold'] * 100:.2f}%"
-    )
-
-    print(
-        f"  Status      : "
-        f"{result['confidence_status'].upper()}"
-    )
-
-    print(
-        f"  Caution     : "
-        f"{'YES' if result['caution_required'] else 'NO'}"
+        result
     )
