@@ -30,25 +30,316 @@ from knowledge_base.database_postgresql import get_disease_profile
 # CNN → DATABASE INTEGRATION
 # ============================================================
 
-def diagnose_from_image(image_path):
+def diagnose_from_images(image_paths):
     """
-    Complete plant-health diagnosis pipeline:
+    Complete plant-health diagnosis pipeline for multiple images.
 
-    Image
-      ↓
-    CNN prediction
-      ↓
-    CNN class → Knowledge Base ID
-      ↓
-    PostgreSQL disease profile
+    Adapts the current predictor output to the structure expected
+    by the diagnosis web template.
 
-    The result also preserves the CNN diagnostic decision
-    information:
-
-        - confidence_status
-        - caution_required
-        - caution_reason
+    Returns:
+        A dictionary containing:
+            - total_images
+            - image_results
+            - contributing_images
+            - excluded_images
+            - diagnostic_findings
     """
+
+    if not image_paths:
+        raise ValueError(
+            "At least one image is required for diagnosis."
+        )
+
+    prediction_result = predict_images(
+        image_paths
+    )
+
+    image_results = []
+    excluded_images = []
+    finding_groups = {}
+
+    for result in prediction_result["results"]:
+
+        gate_status = result.get(
+            "maize_gate_status"
+        )
+
+        class_name = result.get(
+            "class_name"
+        )
+
+        confidence = result.get(
+            "confidence"
+        )
+
+        health_problem_id = result.get(
+            "health_problem_id"
+        )
+
+        prediction = result.get(
+            "prediction"
+        ) or {}
+
+        is_healthy = prediction.get(
+            "is_healthy"
+        )
+
+        if is_healthy is None:
+            is_healthy = (
+                class_name == "Healthy"
+            )
+
+        if gate_status != "accepted":
+
+            excluded_images.append(
+                {
+                    "image_path":
+                        result.get(
+                            "image_path"
+                        ),
+
+                    "maize_gate_probability":
+                        result.get(
+                            "maize_gate_probability"
+                        ),
+
+                    "maize_gate_threshold":
+                        result.get(
+                            "maize_gate_threshold"
+                        ),
+
+                    "rejection_reason":
+                        result.get(
+                            "rejection_reason"
+                        )
+                }
+            )
+
+            continue
+
+        image_results.append(
+            {
+                "image_path":
+                    result.get(
+                        "image_path"
+                    ),
+
+                "class_index":
+                    result.get(
+                        "class_index"
+                    ),
+
+                "class_name":
+                    class_name,
+
+                "confidence":
+                    confidence,
+
+                "confidence_status":
+                    result.get(
+                        "confidence_status"
+                    ),
+
+                "health_problem_id":
+                    health_problem_id,
+
+                "is_healthy":
+                    is_healthy,
+
+                "maize_gate_probability":
+                    result.get(
+                        "maize_gate_probability"
+                    )
+            }
+        )
+
+        finding_key = (
+            health_problem_id
+            or class_name
+        )
+
+        if finding_key not in finding_groups:
+
+            finding_groups[
+                finding_key
+            ] = {
+                "health_problem_id":
+                    health_problem_id,
+
+                "class_name":
+                    class_name,
+
+                "is_healthy":
+                    is_healthy,
+
+                "confidence_values":
+                    [],
+
+                "images":
+                    [],
+
+                "caution_required":
+                    False,
+
+                "caution_reasons":
+                    []
+            }
+
+        group = finding_groups[
+            finding_key
+        ]
+
+        if confidence is not None:
+
+            group[
+                "confidence_values"
+            ].append(
+                confidence
+            )
+
+        group[
+            "images"
+        ].append(
+            result.get(
+                "image_path"
+            )
+        )
+
+        if result.get(
+            "caution"
+        ):
+
+            group[
+                "caution_required"
+            ] = True
+
+            caution_reason = result.get(
+                "caution_reason"
+            )
+
+            if (
+                caution_reason
+                and caution_reason
+                not in group[
+                    "caution_reasons"
+                ]
+            ):
+
+                group[
+                    "caution_reasons"
+                ].append(
+                    caution_reason
+                )
+
+    diagnostic_findings = []
+
+    for group in finding_groups.values():
+
+        confidence_values = group[
+            "confidence_values"
+        ]
+
+        if confidence_values:
+
+            average_confidence = (
+                sum(confidence_values)
+                / len(confidence_values)
+            )
+
+        else:
+
+            average_confidence = None
+
+        health_problem_id = group[
+            "health_problem_id"
+        ]
+
+        is_healthy = group[
+            "is_healthy"
+        ]
+
+        if (
+            not is_healthy
+            and health_problem_id
+        ):
+
+            disease_profile = (
+                get_disease_profile(
+                    health_problem_id
+                )
+            )
+
+        else:
+
+            disease_profile = None
+
+        diagnostic_findings.append(
+            {
+                "health_problem_id":
+                    health_problem_id,
+
+                "class_name":
+                    group[
+                        "class_name"
+                    ],
+
+                "is_healthy":
+                    is_healthy,
+
+                "images":
+                    group[
+                        "images"
+                    ],
+
+                "confidence_values":
+                    confidence_values,
+
+                "average_confidence":
+                    average_confidence,
+
+                "highest_confidence":
+                    (
+                        max(
+                            confidence_values
+                        )
+                        if confidence_values
+                        else None
+                    ),
+
+                "caution_required":
+                    group[
+                        "caution_required"
+                    ],
+
+                "caution_reasons":
+                    group[
+                        "caution_reasons"
+                    ],
+
+                "disease_profile":
+                    disease_profile
+            }
+        )
+
+    return {
+        "total_images":
+            prediction_result[
+                "total_images"
+            ],
+
+        "image_results":
+            image_results,
+
+        "contributing_images":
+            image_results,
+
+        "excluded_images":
+            excluded_images,
+
+        "diagnostic_findings":
+            diagnostic_findings
+    }
 
     # --------------------------------------------------------
     # STEP 1: CNN PREDICTION
@@ -166,98 +457,6 @@ def diagnose_from_image(image_path):
 
         "disease_profile":
             disease_profile
-    }
-
-def diagnose_from_images(image_paths):
-    """
-    Complete plant-health diagnosis pipeline for multiple images.
-
-    Each image is evaluated independently by the CNN maize gate
-    and disease classifier. Matching disease findings are grouped,
-    and each disease finding receives its PostgreSQL profile once.
-
-    Healthy findings do not receive a disease profile.
-
-    Returns:
-        A dictionary containing:
-            - total_images
-            - image_results
-            - contributing_images
-            - excluded_images
-            - diagnostic_findings
-    """
-
-    if not image_paths:
-        raise ValueError(
-            "At least one image is required for diagnosis."
-        )
-
-    prediction_result = predict_images(
-        image_paths
-    )
-
-    diagnostic_findings = []
-
-    for finding in prediction_result[
-        "diagnostic_findings"
-    ]:
-
-        finding_result = dict(
-            finding
-        )
-
-        is_healthy = finding[
-            "is_healthy"
-        ]
-
-        health_problem_id = finding[
-            "health_problem_id"
-        ]
-
-        if (
-            not is_healthy
-            and health_problem_id
-        ):
-
-            finding_result[
-                "disease_profile"
-            ] = get_disease_profile(
-                health_problem_id
-            )
-
-        else:
-
-            finding_result[
-                "disease_profile"
-            ] = None
-
-        diagnostic_findings.append(
-            finding_result
-        )
-
-    return {
-        "total_images":
-            prediction_result[
-                "total_images"
-            ],
-
-        "image_results":
-            prediction_result[
-                "image_results"
-            ],
-
-        "contributing_images":
-            prediction_result[
-                "contributing_images"
-            ],
-
-        "excluded_images":
-            prediction_result[
-                "excluded_images"
-            ],
-
-        "diagnostic_findings":
-            diagnostic_findings
     }
 
 # ============================================================
