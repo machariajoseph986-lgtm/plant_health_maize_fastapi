@@ -790,6 +790,11 @@ async def diagnose_page(
 
     except Exception as error:
 
+        import traceback
+
+        print("DIAGNOSE_PAGE_EXCEPTION:", repr(error))
+        traceback.print_exc()
+
         raise HTTPException(
             status_code=500,
             detail=(
