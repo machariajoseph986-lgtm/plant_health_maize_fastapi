@@ -8,7 +8,8 @@ except ImportError:
 
 import joblib
 import numpy as np
-import tensorflow as tf
+from PIL import Image
+from ai_edge_litert.interpreter import Interpreter
 
 try:
     from .mapping import (
@@ -132,8 +133,8 @@ if not os.path.exists(
 try:
 
     disease_interpreter = (
-        tf.lite.Interpreter(
-            model_path=DISEASE_MODEL_PATH
+        Interpreter(
+            model_path=DISEASE_MODEL_PATH,
         )
     )
 
@@ -183,8 +184,8 @@ if not os.path.exists(
 try:
 
     maize_feature_interpreter = (
-        tf.lite.Interpreter(
-            model_path=FEATURE_EXTRACTOR_PATH
+        Interpreter(
+            model_path=FEATURE_EXTRACTOR_PATH,
         )
     )
 
@@ -515,78 +516,49 @@ def predict_image(
         )
 
         # ----------------------------------------------------
-        # Read image
+        # Read, decode, resize, and preprocess image
         # ----------------------------------------------------
 
-        image_bytes = tf.io.read_file(
+        image = Image.open(
             image_path
+        ).convert("RGB")
+
+        print(
+            "IMAGE_STEP_1: image file read and decoded"
+        )
+
+        image = image.resize(
+            IMAGE_SIZE,
+            Image.Resampling.BILINEAR
         )
 
         print(
-            "IMAGE_STEP_1: image file read"
+            "IMAGE_STEP_2: image resized"
         )
 
-        # ----------------------------------------------------
-        # Decode image
-        # ----------------------------------------------------
-
-        image = tf.image.decode_image(
-            image_bytes,
-            channels=3,
-            expand_animations=False
+        image_array = np.asarray(
+            image,
+            dtype=np.float32
         )
 
         print(
-            "IMAGE_STEP_2: image decoded"
+            "IMAGE_STEP_3: image converted to float32"
         )
 
-        # ----------------------------------------------------
-        # Resize image
-        # ----------------------------------------------------
+        # MobileNetV2 preprocessing:
+        # convert pixel values from [0, 255]
+        # to approximately [-1, 1].
 
-        image = tf.image.resize(
-            image,
-            IMAGE_SIZE
-        )
+        image_array = (
+            image_array / 127.5
+        ) - 1.0
 
-        print(
-            "IMAGE_STEP_3: image resized"
-        )
+        # Add batch dimension.
 
-        # ----------------------------------------------------
-        # Convert to float32
-        # ----------------------------------------------------
-
-        image = tf.cast(
-            image,
-            tf.float32
-        )
-
-        # ----------------------------------------------------
-        # MobileNetV2 preprocessing
-        #
-        # This converts pixel values from
-        # [0, 255] to approximately [-1, 1].
-        # ----------------------------------------------------
-
-        image = (
-            tf.keras.applications
-            .mobilenet_v2
-            .preprocess_input(
-                image
-            )
-        )
-
-        # ----------------------------------------------------
-        # Add batch dimension
-        # ----------------------------------------------------
-
-        image_array = tf.expand_dims(
-            image,
+        image_array = np.expand_dims(
+            image_array,
             axis=0
         )
-
-        image_array = image_array.numpy()
 
         print(
             "IMAGE_STEP_4: image preprocessing complete"
