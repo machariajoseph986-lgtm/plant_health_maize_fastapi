@@ -1144,7 +1144,7 @@
                         </p>
 
                         <a
-                            href="/chatbot?health_problem_id={{ finding.health_problem_id }}"
+                            href="/chatbot?health_problem_id={{ finding.health_problem_id }}&diagnosis_case_id={{ result.diagnosis_case_id }}"
                             class="primary-button"
                         >
                             Ask about this diagnosis
@@ -1255,6 +1255,7 @@
             </div>
 
             {% endfor %}
+
             <div class="chatbot-help">
 
                 <h3>Need help?</h3>

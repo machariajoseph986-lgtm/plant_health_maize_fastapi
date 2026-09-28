@@ -23,17 +23,36 @@
 
         {% if diagnosis_profile %}
         <div class="diagnosis-context">
+
             <h2>Discussing this diagnosis</h2>
+
             <p>
                 <strong>{{ diagnosis_profile.disease }}</strong>
                 ({{ diagnosis_profile.crop }})
             </p>
+
             <p>
                 You can ask follow-up questions about this diagnosis,
                 including management, prevention, symptoms, or chemical treatment.
             </p>
+
         </div>
         {% endif %}
+
+
+        {% if diagnosis_case_id %}
+        <div class="diagnosis-return">
+
+            <a
+                href="/diagnosis?case_id={{ diagnosis_case_id }}"
+                class="primary-button"
+            >
+                ← Back to your diagnosis
+            </a>
+
+        </div>
+        {% endif %}
+
 
         <form method="POST" action="{{ url_for('chatbot_submit') }}">
 
@@ -44,6 +63,15 @@
                 value="{{ health_problem_id }}"
             >
             {% endif %}
+
+            {% if diagnosis_case_id %}
+            <input
+                type="hidden"
+                name="diagnosis_case_id"
+                value="{{ diagnosis_case_id }}"
+            >
+            {% endif %}
+
 
             <label for="question">
                 Your question

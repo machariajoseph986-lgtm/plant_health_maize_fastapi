@@ -137,6 +137,55 @@ os.makedirs(
 )
 
 
+# ============================================================
+# TEMPORARY DIAGNOSIS CASE STORAGE
+# ============================================================
+
+diagnosis_cases = {}
+
+MAX_STORED_DIAGNOSIS_CASES = 50
+
+
+def store_diagnosis_case(result):
+    """
+    Store a completed diagnosis temporarily and return
+    a unique case ID.
+
+    The diagnosis result is already converted to data URLs,
+    so it does not depend on the temporary uploaded files.
+    """
+
+    case_id = uuid.uuid4().hex
+
+    diagnosis_cases[case_id] = result
+
+    # Prevent unlimited growth of the in-memory store.
+    if len(diagnosis_cases) > MAX_STORED_DIAGNOSIS_CASES:
+
+        oldest_case_id = next(
+            iter(diagnosis_cases)
+        )
+
+        del diagnosis_cases[oldest_case_id]
+
+    return case_id
+
+
+def get_diagnosis_case(case_id):
+    """
+    Retrieve a temporarily stored diagnosis case.
+    """
+
+    if not case_id:
+        return None
+
+    return diagnosis_cases.get(case_id)
+
+
+# ============================================================
+# FILE CLEANUP
+# ============================================================
+
 def cleanup_uploaded_files(file_paths):
     """
     Delete temporary uploaded files.
@@ -353,13 +402,26 @@ async def home(request: Request):
     response_class=HTMLResponse,
     name="diagnosis"
 )
-async def diagnosis_page(request: Request):
+async def diagnosis_page(
+    request: Request,
+    case_id: str | None = None
+):
+    """
+    Display a previously completed diagnosis case.
+
+    Without a case ID, the page behaves as the normal
+    empty diagnosis page.
+    """
+
+    result = get_diagnosis_case(
+        case_id
+    )
 
     return templates.TemplateResponse(
         request=request,
         name="diagnosis.html",
         context={
-            "result": None
+            "result": result
         }
     )
 
@@ -371,7 +433,8 @@ async def diagnosis_page(request: Request):
 )
 async def chatbot_page(
     request: Request,
-    health_problem_id: str | None = None
+    health_problem_id: str | None = None,
+    diagnosis_case_id: str | None = None
 ):
 
     diagnosis_profile = None
@@ -386,13 +449,23 @@ async def chatbot_page(
             health_problem_id
         )
 
+    # Only preserve a case ID if the diagnosis actually exists.
+    if diagnosis_case_id:
+
+        if not get_diagnosis_case(
+            diagnosis_case_id
+        ):
+
+            diagnosis_case_id = None
+
     return templates.TemplateResponse(
         request=request,
         name="chatbot.html",
         context={
             "response": None,
             "health_problem_id": health_problem_id,
-            "diagnosis_profile": diagnosis_profile
+            "diagnosis_profile": diagnosis_profile,
+            "diagnosis_case_id": diagnosis_case_id
         }
     )
 
@@ -634,6 +707,7 @@ async def diagnose_api(
         raise
 
     except Exception as error:
+
         print(
             "DIAGNOSE_PAGE_ERROR:",
             repr(error)
@@ -674,6 +748,10 @@ async def diagnose_page(
     Uploaded images are stored in a temporary directory outside
     static/uploads. Result images are embedded into the response
     as data URLs, then the temporary directory is deleted.
+
+    The completed diagnosis is also temporarily stored under
+    a unique case ID so the user can return to the exact same
+    diagnosis after visiting the chatbot.
     """
 
     if not images:
@@ -772,9 +850,20 @@ async def diagnose_page(
 
         result["image_paths"] = saved_paths
 
+        # Convert temporary image files to data URLs before
+        # deleting the temporary directory.
         result = embed_result_images(
             result
         )
+
+        # Store the complete diagnosis so the user can return
+        # to this exact result after visiting the chatbot.
+        case_id = store_diagnosis_case(
+            result
+        )
+
+        # Make the case ID available to diagnosis.html.
+        result["diagnosis_case_id"] = case_id
 
         return templates.TemplateResponse(
             request=request,
@@ -868,11 +957,36 @@ async def chat(
 async def chatbot_submit(
     request: Request,
     question: str = Form(""),
-    health_problem_id: str | None = Form(None)
+    health_problem_id: str | None = Form(None),
+    diagnosis_case_id: str | None = Form(None)
 ):
     """
     Process the chatbot web form and render the response.
+
+    The diagnosis case ID is preserved through every chatbot
+    question so the user can return to the original diagnosis.
     """
+
+    # Only preserve a case ID if the diagnosis still exists.
+    if diagnosis_case_id:
+
+        if not get_diagnosis_case(
+            diagnosis_case_id
+        ):
+
+            diagnosis_case_id = None
+
+    diagnosis_profile = None
+
+    if health_problem_id:
+
+        from knowledge_base.database_postgresql import (
+            get_disease_profile
+        )
+
+        diagnosis_profile = get_disease_profile(
+            health_problem_id
+        )
 
     if not question.strip():
 
@@ -882,7 +996,8 @@ async def chatbot_submit(
             context={
                 "response": "Please enter a question.",
                 "health_problem_id": health_problem_id,
-                "diagnosis_profile": None
+                "diagnosis_profile": diagnosis_profile,
+                "diagnosis_case_id": diagnosis_case_id
             },
             status_code=400
         )
@@ -914,10 +1029,10 @@ async def chatbot_submit(
         context={
             "response": response,
             "health_problem_id": health_problem_id,
-            "diagnosis_profile": None
+            "diagnosis_profile": diagnosis_profile,
+            "diagnosis_case_id": diagnosis_case_id
         }
     )
-
 
 
 # ============================================================
