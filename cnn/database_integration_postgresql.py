@@ -99,7 +99,7 @@ def diagnose_from_images(image_paths):
                             "image_path"
                         ),
 
-                    "maize_gate_probability":
+                    "maize_probability":
                         result.get(
                             "maize_gate_probability"
                         ),
