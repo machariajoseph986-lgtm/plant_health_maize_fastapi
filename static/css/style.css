@@ -1217,8 +1217,167 @@ main {
 
 
 /* ============================================================
+   CHATBOT QUESTION HISTORY
+   ============================================================ */
+
+.chatbot-history {
+    margin-bottom: 35px;
+    padding: 24px;
+    background: #F8FCF9;
+    border: 1px solid rgba(45, 106, 79, 0.12);
+    border-radius: 16px;
+}
+
+.history-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 18px;
+}
+
+.history-header h2 {
+    margin: 0;
+    color: #1F5138;
+    font-size: 1.25rem;
+}
+
+.chatbot-history ol {
+    margin: 0;
+    padding-left: 28px;
+}
+
+.chatbot-history li {
+    margin-bottom: 8px;
+    padding-left: 4px;
+}
+
+.chatbot-history li:last-child {
+    margin-bottom: 0;
+}
+
+.chatbot-history li form {
+    display: block;
+    margin: 0;
+}
+
+.chatbot-history li button {
+    width: 100%;
+    padding: 11px 14px;
+    background: #ffffff;
+    color: #2D6A4F;
+    border: 1px solid rgba(45, 106, 79, 0.10);
+    border-radius: 10px;
+    text-align: left;
+    font: inherit;
+    line-height: 1.5;
+    cursor: pointer;
+    box-sizing: border-box;
+    transition:
+        background 0.2s ease,
+        border-color 0.2s ease,
+        color 0.2s ease,
+        transform 0.2s ease;
+}
+
+.chatbot-history li button:hover {
+    background: #F1F8F3;
+    border-color: rgba(45, 106, 79, 0.22);
+    color: #1F5138;
+    transform: translateX(2px);
+}
+
+.history-footer {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid rgba(45, 106, 79, 0.10);
+}
+
+.history-footer form {
+    display: block;
+    margin: 0;
+}
+
+.clear-history-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    padding: 9px 15px;
+    background: #ffffff;
+    color: #8A3B3B;
+    border: 1px solid rgba(138, 59, 59, 0.22);
+    border-radius: 8px;
+    font: inherit;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease;
+}
+
+.clear-history-icon {
+    position: relative;
+    display: inline-block;
+    width: 12px;
+    height: 13px;
+    border: 1.5px solid currentColor;
+    border-top: 0;
+    border-radius: 0 0 2px 2px;
+    box-sizing: border-box;
+}
+
+.clear-history-icon::before {
+    content: "";
+    position: absolute;
+    top: -4px;
+    left: -2px;
+    width: 14px;
+    height: 1.5px;
+    background: currentColor;
+    border-radius: 2px;
+}
+
+.clear-history-icon::after {
+    content: "";
+    position: absolute;
+    top: -6px;
+    left: 2px;
+    width: 6px;
+    height: 2px;
+    border: 1.5px solid currentColor;
+    border-bottom: 0;
+    border-radius: 2px 2px 0 0;
+    box-sizing: border-box;
+}
+
+.clear-history-button:hover {
+    background: #8A3B3B;
+    color: #ffffff;
+}
+
+@media (max-width: 600px) {
+
+    .chatbot-history {
+        padding: 20px 16px;
+    }
+
+    .history-header {
+        align-items: flex-start;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .clear-history-button {
+        width: 100%;
+    }
+
+}
+
+
+/* ============================================================
    CHATBOT QUESTION FORM
    ============================================================ */
+
 
 .chatbot-container form {
     display: flex;

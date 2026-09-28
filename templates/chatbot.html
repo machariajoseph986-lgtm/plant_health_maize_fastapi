@@ -54,7 +54,91 @@
         {% endif %}
 
 
-        <form method="POST" action="{{ url_for('chatbot_submit') }}">
+        {% if chatbot_history %}
+
+<div class="chatbot-history">
+
+    <div class="history-header">
+
+        <h2>Conversation history</h2>
+
+    </div>
+
+    <ol>
+
+        {% for item in chatbot_history %}
+
+        <li>
+
+            <form method="POST" action="{{ url_for('chatbot_submit') }}">
+
+                <input
+                    type="hidden"
+                    name="question"
+                    value="{{ item.question }}"
+                >
+
+                {% if item.health_problem_id %}
+                <input
+                    type="hidden"
+                    name="health_problem_id"
+                    value="{{ item.health_problem_id }}"
+                >
+                {% endif %}
+
+                {% if item.diagnosis_case_id %}
+                <input
+                    type="hidden"
+                    name="diagnosis_case_id"
+                    value="{{ item.diagnosis_case_id }}"
+                >
+                {% endif %}
+
+                <input
+                    type="hidden"
+                    name="history_action"
+                    value="repeat"
+                >
+
+                <button type="submit">
+                    {{ item.question }}
+                </button>
+
+            </form>
+
+        </li>
+
+        {% endfor %}
+
+    </ol>
+
+    <div class="history-footer">
+
+        <form
+            method="POST"
+            action="{{ url_for('chatbot_clear_history') }}"
+            onsubmit="return confirm('Clear all question history?');"
+        >
+            <button
+                type="submit"
+                class="clear-history-button"
+            >
+                <span
+                    class="clear-history-icon"
+                    aria-hidden="true"
+                ></span>
+                <span>Clear history</span>
+            </button>
+        </form>
+
+    </div>
+
+</div>
+
+{% endif %}
+
+
+<form method="POST" action="{{ url_for('chatbot_submit') }}">
 
             {% if health_problem_id %}
             <input

@@ -18,7 +18,7 @@ from fastapi import (
     Form
 )
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
@@ -40,6 +40,14 @@ os.environ["TF_XLA_FLAGS"] = "--tf_xla_auto_jit=0"
 class ChatRequest(BaseModel):
     message: str
 
+# ============================================================
+# CHATBOT QUESTION HISTORY
+# ============================================================
+
+MAX_CHATBOT_HISTORY = 10
+
+chatbot_histories = {}
+
 
 app = FastAPI(
     title="Plant Health Maize API",
@@ -49,6 +57,33 @@ app = FastAPI(
     redoc_url="/redoc" if ENVIRONMENT == "development" else None,
     openapi_url="/openapi.json" if ENVIRONMENT == "development" else None,
 )
+
+
+@app.post(
+    "/chatbot/clear-history",
+    response_class=HTMLResponse,
+    name="chatbot_clear_history"
+)
+async def chatbot_clear_history(
+    request: Request
+):
+    """
+    Clear the question history for the current chatbot session.
+    """
+
+    session_id = request.cookies.get(
+        "chatbot_session_id"
+    )
+
+    if session_id in chatbot_histories:
+
+        chatbot_histories[session_id] = []
+
+    return RedirectResponse(
+        url="/chatbot",
+        status_code=303
+    )
+
 
 
 # ============================================================
@@ -458,17 +493,45 @@ async def chatbot_page(
 
             diagnosis_case_id = None
 
-    return templates.TemplateResponse(
+    # Get the chatbot session ID from the browser cookie.
+    session_id = request.cookies.get(
+        "chatbot_session_id"
+    )
+
+    # Create a new session if this is the user's first visit.
+    if not session_id:
+
+        session_id = uuid.uuid4().hex
+
+        chatbot_histories[session_id] = []
+
+    # Make sure the session has a history list.
+    if session_id not in chatbot_histories:
+
+        chatbot_histories[session_id] = []
+
+    response = templates.TemplateResponse(
         request=request,
         name="chatbot.html",
         context={
             "response": None,
             "health_problem_id": health_problem_id,
             "diagnosis_profile": diagnosis_profile,
-            "diagnosis_case_id": diagnosis_case_id
+            "diagnosis_case_id": diagnosis_case_id,
+            "chatbot_history": chatbot_histories[session_id]
         }
     )
 
+    # Store the session ID in the browser.
+    response.set_cookie(
+        key="chatbot_session_id",
+        value=session_id,
+        httponly=True,
+        samesite="lax",
+        secure=ENVIRONMENT == "production"
+    )
+
+    return response
 
 # ============================================================
 # HEALTH CHECK
@@ -958,7 +1021,8 @@ async def chatbot_submit(
     request: Request,
     question: str = Form(""),
     health_problem_id: str | None = Form(None),
-    diagnosis_case_id: str | None = Form(None)
+    diagnosis_case_id: str | None = Form(None),
+    history_action: str | None = Form(None)
 ):
     """
     Process the chatbot web form and render the response.
@@ -966,6 +1030,22 @@ async def chatbot_submit(
     The diagnosis case ID is preserved through every chatbot
     question so the user can return to the original diagnosis.
     """
+    # Get the chatbot session from the browser cookie.
+    session_id = request.cookies.get(
+        "chatbot_session_id"
+    )
+
+    # Create a new session if the cookie is missing
+    # or its history no longer exists.
+    if not session_id:
+
+        session_id = uuid.uuid4().hex
+
+        chatbot_histories[session_id] = []
+
+    elif session_id not in chatbot_histories:
+
+        chatbot_histories[session_id] = []
 
     # Only preserve a case ID if the diagnosis still exists.
     if diagnosis_case_id:
@@ -997,10 +1077,35 @@ async def chatbot_submit(
                 "response": "Please enter a question.",
                 "health_problem_id": health_problem_id,
                 "diagnosis_profile": diagnosis_profile,
-                "diagnosis_case_id": diagnosis_case_id
+                "diagnosis_case_id": diagnosis_case_id,
+                "chatbot_history": chatbot_histories[session_id]
             },
             status_code=400
         )
+
+    # Get the current chatbot history.
+    chatbot_history = chatbot_histories[session_id]
+
+    # Store only questions that were newly submitted.
+    # Repeated history questions are not added again.
+    if history_action != "repeat":
+
+        question_entry = {
+            "question": question.strip(),
+            "health_problem_id": health_problem_id,
+            "diagnosis_case_id": diagnosis_case_id
+        }
+
+        chatbot_history.append(
+            question_entry
+        )
+
+        # Keep only the latest 10 questions.
+        if len(chatbot_history) > MAX_CHATBOT_HISTORY:
+
+            del chatbot_history[
+                :-MAX_CHATBOT_HISTORY
+            ]
 
     try:
 
@@ -1030,7 +1135,8 @@ async def chatbot_submit(
             "response": response,
             "health_problem_id": health_problem_id,
             "diagnosis_profile": diagnosis_profile,
-            "diagnosis_case_id": diagnosis_case_id
+            "diagnosis_case_id": diagnosis_case_id,
+            "chatbot_history": chatbot_history
         }
     )
 

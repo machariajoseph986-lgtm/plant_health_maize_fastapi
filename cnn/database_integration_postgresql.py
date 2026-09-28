@@ -59,7 +59,10 @@ def diagnose_from_images(image_paths):
     excluded_images = []
     finding_groups = {}
 
-    for result in prediction_result["results"]:
+    for image_number, result in enumerate(
+        prediction_result["results"],
+        start=1
+    ):
 
         gate_status = result.get(
             "maize_gate_status"
@@ -94,6 +97,9 @@ def diagnose_from_images(image_paths):
 
             excluded_images.append(
                 {
+                    "image_number":
+                        image_number,
+
                     "image_path":
                         result.get(
                             "image_path"
@@ -120,6 +126,9 @@ def diagnose_from_images(image_paths):
 
         image_results.append(
             {
+                "image_number":
+                    image_number,
+
                 "image_path":
                     result.get(
                         "image_path"
@@ -176,6 +185,9 @@ def diagnose_from_images(image_paths):
                 "confidence_values":
                     [],
 
+                "confidence_statuses":
+                    [],
+
                 "images":
                     [],
 
@@ -196,6 +208,18 @@ def diagnose_from_images(image_paths):
                 "confidence_values"
             ].append(
                 confidence
+            )
+
+        confidence_status = result.get(
+            "confidence_status"
+        )
+
+        if confidence_status:
+
+            group[
+                "confidence_statuses"
+            ].append(
+                confidence_status
             )
 
         group[
@@ -259,6 +283,22 @@ def diagnose_from_images(image_paths):
             "is_healthy"
         ]
 
+        confidence_statuses = group[
+            "confidence_statuses"
+        ]
+
+        if confidence_statuses and all(
+            status == "accepted"
+            for status in confidence_statuses
+        ):
+            finding_status = "identified"
+
+        elif "uncertain" in confidence_statuses:
+            finding_status = "identified_with_uncertainty"
+
+        else:
+            finding_status = "possible"
+
         if (
             not is_healthy
             and health_problem_id
@@ -286,6 +326,9 @@ def diagnose_from_images(image_paths):
 
                 "is_healthy":
                     is_healthy,
+
+                "finding_status":
+                    finding_status,
 
                 "images":
                     group[

@@ -837,7 +837,6 @@ def chatbot_response(user_input, health_problem_id=None):
         # -------------------------------------------------
 
         "potato bacterial wilt",
-        "bacterial wilt",
 
         # -------------------------------------------------
         # GENERIC PLANT NAMES — CHECK LAST
