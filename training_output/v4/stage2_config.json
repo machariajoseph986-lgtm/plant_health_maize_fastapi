@@ -1,0 +1,52 @@
+{
+  "stage": "V4 Stage 2 fine-tuning",
+  "seed": 42,
+  "image_size": [
+    320,
+    320
+  ],
+  "batch_size": 16,
+  "num_classes": 6,
+  "class_names": [
+    "Northern_Leaf_Blight",
+    "Common_Rust",
+    "Gray_Leaf_Spot",
+    "Healthy",
+    "Maize_Lethal_Necrosis",
+    "Maize_Streak_Virus"
+  ],
+  "dataset_root": "..\\v4_dataset",
+  "starting_model": "training_output\\v4\\stage1_best.keras",
+  "backbone": "mobilenetv2_1.00_224",
+  "fine_tune_start": 116,
+  "frozen_internal_layers": "0-115",
+  "candidate_trainable_internal_layers": "116-153",
+  "batch_normalization_frozen": true,
+  "learning_rate": 2e-06,
+  "optimizer": "Adam",
+  "loss": "categorical_crossentropy",
+  "augmentation": [
+    "RandomFlip(horizontal)",
+    "RandomRotation(0.08)",
+    "RandomZoom(0.10)",
+    "RandomContrast(0.10)"
+  ],
+  "class_weights": {
+    "0": 2.845717,
+    "1": 2.492726,
+    "2": 5.691434,
+    "3": 0.518474,
+    "4": 0.817965,
+    "5": 0.520713
+  },
+  "max_epochs": 20,
+  "early_stopping": {
+    "monitor": "val_loss",
+    "patience": 4,
+    "restore_best_weights": true
+  },
+  "checkpoint": {
+    "monitor": "val_loss",
+    "save_best_only": true
+  }
+}

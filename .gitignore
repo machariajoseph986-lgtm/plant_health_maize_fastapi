@@ -14,3 +14,6 @@ hard_negatives_preview.jpg
 hard_training_negatives.jpg
 validation_false_positives.jpg
 validation_hard_negatives.jpg
+
+# V4 CNN model checkpoints (preserved locally)
+training_output/v4/*.keras

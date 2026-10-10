@@ -1,0 +1,48 @@
+{
+  "experiment": "Maize Disease CNN V4",
+  "stage": 1,
+  "seed": 42,
+  "tensorflow_version": "2.21.0",
+  "keras_version": "3.15.0",
+  "image_size": [
+    320,
+    320
+  ],
+  "batch_size": 16,
+  "num_classes": 6,
+  "class_names": [
+    "Northern_Leaf_Blight",
+    "Common_Rust",
+    "Gray_Leaf_Spot",
+    "Healthy",
+    "Maize_Lethal_Necrosis",
+    "Maize_Streak_Virus"
+  ],
+  "max_epochs": 20,
+  "learning_rate": 0.0001,
+  "optimizer": "Adam",
+  "loss": "categorical_crossentropy",
+  "dropout": 0.3,
+  "backbone": "MobileNetV2",
+  "weights": "ImageNet",
+  "include_top": false,
+  "backbone_trainable": false,
+  "preprocessing": "MobileNetV2: (pixel / 127.5) - 1.0",
+  "augmentation": {
+    "horizontal_flip": true,
+    "rotation": 0.08,
+    "zoom": 0.1,
+    "contrast": 0.1
+  },
+  "class_weights": {
+    "Northern_Leaf_Blight": 2.845717,
+    "Common_Rust": 2.492726,
+    "Gray_Leaf_Spot": 5.691434,
+    "Healthy": 0.518474,
+    "Maize_Lethal_Necrosis": 0.817965,
+    "Maize_Streak_Virus": 0.520713
+  },
+  "total_parameters": 2265670,
+  "trainable_parameters": 7686,
+  "non_trainable_parameters": 2257994
+}

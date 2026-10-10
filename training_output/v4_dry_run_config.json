@@ -1,0 +1,36 @@
+{
+  "seed": 42,
+  "image_size": [
+    320,
+    320
+  ],
+  "batch_size": 16,
+  "num_classes": 6,
+  "class_names": [
+    "Northern_Leaf_Blight",
+    "Common_Rust",
+    "Gray_Leaf_Spot",
+    "Healthy",
+    "Maize_Lethal_Necrosis",
+    "Maize_Streak_Virus"
+  ],
+  "stage_1_learning_rate": 0.0001,
+  "stage_1_max_epochs": 20,
+  "stage_2_learning_rate": 2e-06,
+  "stage_2_max_epochs": 20,
+  "dropout": 0.3,
+  "augmentation": {
+    "horizontal_flip": true,
+    "rotation": 0.08,
+    "zoom": 0.1,
+    "contrast": 0.1
+  },
+  "class_weights": {
+    "0": 2.845717,
+    "1": 2.492726,
+    "2": 5.691434,
+    "3": 0.518474,
+    "4": 0.817965,
+    "5": 0.520713
+  }
+}

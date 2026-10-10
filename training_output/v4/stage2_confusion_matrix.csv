@@ -1,0 +1,7 @@
+actual_class,Northern_Leaf_Blight,Common_Rust,Gray_Leaf_Spot,Healthy,Maize_Lethal_Necrosis,Maize_Streak_Virus
+Northern_Leaf_Blight,105,15,51,0,0,1
+Common_Rust,5,183,7,1,0,0
+Gray_Leaf_Spot,4,6,76,0,0,0
+Healthy,0,0,2,909,27,3
+Maize_Lethal_Necrosis,1,0,0,32,545,19
+Maize_Streak_Virus,0,0,0,1,43,894

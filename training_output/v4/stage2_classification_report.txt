@@ -1,0 +1,37 @@
+V4 STAGE 2 — HELD-OUT TEST EVALUATION
+================================================================================
+
+Test loss: 0.197888
+Test accuracy: 0.925597
+Accuracy: 0.925597
+Macro precision: 0.865661
+Macro recall: 0.876640
+Macro F1: 0.859930
+Weighted precision: 0.932259
+Weighted recall: 0.925597
+Weighted F1: 0.925986
+
+Classification report:
+                       precision    recall  f1-score   support
+
+ Northern_Leaf_Blight     0.9130    0.6105    0.7317       172
+          Common_Rust     0.8971    0.9337    0.9150       196
+       Gray_Leaf_Spot     0.5588    0.8837    0.6847        86
+              Healthy     0.9639    0.9660    0.9650       941
+Maize_Lethal_Necrosis     0.8862    0.9129    0.8993       597
+   Maize_Streak_Virus     0.9749    0.9531    0.9639       938
+
+             accuracy                         0.9256      2930
+            macro avg     0.8657    0.8766    0.8599      2930
+         weighted avg     0.9323    0.9256    0.9260      2930
+
+
+Confusion matrix:
+Rows = Actual; Columns = Predicted
+
+105,15,51,0,0,1
+5,183,7,1,0,0
+4,6,76,0,0,0
+0,0,2,909,27,3
+1,0,0,32,545,19
+0,0,0,1,43,894

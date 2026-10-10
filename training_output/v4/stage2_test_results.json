@@ -1,0 +1,73 @@
+{
+  "experiment": "Maize Disease CNN V4",
+  "stage": 1,
+  "model": "training_output\\v4\\stage2_best.keras",
+  "test_samples": 2930,
+  "test_loss": 0.19788803160190582,
+  "test_accuracy": 0.9255972504615784,
+  "accuracy": 0.9255972696245733,
+  "macro_precision": 0.8656612935649949,
+  "macro_recall": 0.8766404410973959,
+  "macro_f1": 0.8599302483724579,
+  "weighted_precision": 0.9322593871736927,
+  "weighted_recall": 0.9255972696245733,
+  "weighted_f1": 0.9259857571937347,
+  "class_names": [
+    "Northern_Leaf_Blight",
+    "Common_Rust",
+    "Gray_Leaf_Spot",
+    "Healthy",
+    "Maize_Lethal_Necrosis",
+    "Maize_Streak_Virus"
+  ],
+  "confusion_matrix": [
+    [
+      105,
+      15,
+      51,
+      0,
+      0,
+      1
+    ],
+    [
+      5,
+      183,
+      7,
+      1,
+      0,
+      0
+    ],
+    [
+      4,
+      6,
+      76,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      2,
+      909,
+      27,
+      3
+    ],
+    [
+      1,
+      0,
+      0,
+      32,
+      545,
+      19
+    ],
+    [
+      0,
+      0,
+      0,
+      1,
+      43,
+      894
+    ]
+  ]
+}
